@@ -33,12 +33,15 @@ const STYLE = `
 :host([inline-grid]) { display: inline-grid; }
 /* Only three positioned boxes per surface (host, layer drawing, content), like the legacy
    <ax-reveal>: every positioned box is a paint chunk the compositor walks on every frame a
-   canvas changes. .tilt is a plain box until it gets a transform; layer containers take no box
-   unless outward features grow the paint area beyond the layout box. */
+   canvas changes. Layer containers take no box unless outward features grow the paint area
+   beyond the layout box, or while they are tilted.
+   The tilt goes on each layer container and on the content, not on a common parent: inside
+   position: sticky, Firefox renders a backdrop-filter under an animated 3D transform of an
+   ancestor with the wrong backdrop. Layers that use one (acrylic) tilt their own elements. */
 .tilt { width: 100%; height: 100%; }
 .layers, .layers > div { display: contents; }
 .layers.box { display: block; position: absolute; pointer-events: none; }
-.layers.box > div { display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.layers.box > div, .layers > div.tilted { display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
 .content { position: relative; width: 100%; height: 100%; }
 `;
 
@@ -84,8 +87,12 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     }
 
     private root: ShadowRoot;
-    private tiltBox: HTMLElement;
+    private contentBox: HTMLElement;
     private layerBox: HTMLElement;
+    // One per attached layer, in paint order.
+    private containers: HTMLElement[] = [];
+    // The tilt written to the containers and the content: transform and origin.
+    private tiltKey = '';
     private layers: SurfaceLayer[] = [];
     private pendingLayers: (() => void)[] = [];
     // Names from the attribute, and the names of the layers that exist (unknown ones skipped).
@@ -198,7 +205,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         super();
         this.root = this.attachShadow({ mode: 'open' });
         this.root.appendChild(template!.content.cloneNode(true));
-        this.tiltBox = this.root.querySelector('.tilt') as HTMLElement;
+        this.contentBox = this.root.querySelector('.content') as HTMLElement;
         this.layerBox = this.root.querySelector('.layers') as HTMLElement;
     }
 
@@ -358,6 +365,8 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         this.pendingLayers = [];
         for (const layer of this.layers) layer.detach();
         this.layerBox.innerHTML = '';
+        this.containers = [];
+        this.tiltKey = '';
         this.layers = [];
         this.activeNames = [];
         this.layerNames = names;
@@ -393,8 +402,10 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             const container = document.createElement('div');
             container.className = `layer-${this.activeNames[i]}`;
             this.layerBox.appendChild(container);
+            this.containers.push(container);
             layer.attach(container);
         });
+        this.tiltKey = '';
     }
 
     private setVisible(visible: boolean) {
@@ -604,7 +615,8 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
                 s.height = isDefault ? '' : `${p.height}px`;
             }
         }
-        if (changed.tilt) this.tiltBox.style.transform = this.tiltNow ? tiltTransform(this.tiltNow) : '';
+        const transform = this.tiltNow ? tiltTransform(this.tiltNow) : '';
+        if (changed.tilt || changed.style || changed.size) this.writeTilt(transform);
 
         const frame: SurfaceFrame = {
             width: this.width,
@@ -616,6 +628,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             borderInner: this.inner,
             ringInner: this.ringInner,
             tilt: this.homography,
+            tiltTransform: transform,
             pointer: this.local,
             values: v,
             changed,
@@ -638,6 +651,26 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         this.sizeDirty = this.pointerDirty = this.tiltDirty = false;
         this.tiltChanged = false;
         if (again) this.requestFrame();
+    }
+
+    // Tilts the content and every layer container, except those of layers that tilt themselves.
+    // A container covers the layout box, or the paint box when it is larger; the origin is the
+    // center of the layout box either way.
+    private writeTilt(transform: string) {
+        const p = this.paint;
+        const boxed = this.paintKey !== '';
+        const origin = boxed ? `${this.width / 2 - p.left}px ${this.height / 2 - p.top}px` : '';
+        const key = transform && `${transform}|${origin}|${this.containers.length}`;
+        if (key === this.tiltKey) return;
+        this.tiltKey = key;
+        this.contentBox.style.transform = transform;
+        this.containers.forEach((container, i) => {
+            if (this.layers[i].tiltsItself) return;
+            container.classList.toggle('tilted', !!transform);
+            const s = container.style;
+            s.transform = transform;
+            s.transformOrigin = transform ? origin : '';
+        });
     }
 
     // For tests and debugging.

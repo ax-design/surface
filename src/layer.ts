@@ -40,6 +40,9 @@ export interface SurfaceFrame {
     ringInner(): Point[];
     // Current tilt of the surface, null when flat.
     tilt: Homography | null;
+    // The tilt as a CSS transform for a box at the layout box, around its center; empty when
+    // flat. For layers that set `tiltsItself`.
+    tiltTransform: string;
     // Null when no pointer is present or the surface does not track it.
     pointer: LocalPointer | null;
     values: Values;
@@ -57,6 +60,11 @@ export interface SurfaceLayer {
     // For the others the surface computes the geometry lazily, when the pointer comes within
     // `reach` of the surface, when pressed or when tilted.
     readonly static?: boolean;
+    // The surface tilts each layer's container. A layer with this flag gets an untilted
+    // container and applies `tiltTransform` to its own elements instead. Layers with a
+    // backdrop-filter need it: Firefox renders the backdrop wrong under a transformed ancestor
+    // inside position: sticky.
+    readonly tiltsItself?: boolean;
     // Distance in px from the surface beyond which the layer draws nothing.
     reach?(width: number, height: number): number;
     // How far outside the shape the layer paints, in px: one number for every side or

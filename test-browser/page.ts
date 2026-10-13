@@ -1,6 +1,6 @@
 // Browser checks for <ax-surface>. Some steps need real input; the driver performs them when
 // window.__step asks for it and answers through window.__ack.
-import { apply, resolve, toSvgPath } from '@ax-design/shape';
+import { apply, resolve, tiltHomography, toSvgPath } from '@ax-design/shape';
 import { register, registerLayer, services, shapeSpecFrom, borderWidthsFrom } from '../src/index.js';
 import type { AxSurface } from '../src/index.js';
 
@@ -107,8 +107,13 @@ async function run() {
     // 5. Tilt on press, released back to flat.
     const t = byId('t');
     await ask('press-t');
+    // The tilt goes on the content and on each layer container, not on a common parent.
+    const content = t.shadowRoot!.querySelector('.content') as HTMLElement;
+    const fillBox = t.shadowRoot!.querySelector('.layer-fill') as HTMLElement;
     const tiltBox = t.shadowRoot!.querySelector('.tilt') as HTMLElement;
-    check('pressed surface tilts', tiltBox.style.transform.indexOf('rotateX') >= 0, tiltBox.style.transform);
+    check('pressed surface tilts', content.style.transform.indexOf('rotateX') >= 0, content.style.transform);
+    check('layer containers tilt with the content', fillBox.style.transform === content.style.transform && getComputedStyle(fillBox).display === 'block', fillBox.style.transform);
+    check('no common tilted parent', getComputedStyle(tiltBox).transform === 'none', getComputedStyle(tiltBox).transform);
     // Pointer mapping under tilt: projecting the local point lands on the pointer.
     const s = t.debugState;
     const rect = t.getBoundingClientRect();
@@ -125,7 +130,51 @@ async function run() {
     }
     await ask('release');
     await frames(8);
-    check('released surface returns flat', tiltBox.style.transform === '', tiltBox.style.transform);
+    check('released surface returns flat', content.style.transform === '' && fillBox.style.transform === '' && getComputedStyle(fillBox).display === 'contents', content.style.transform);
+
+    // 4b. With a paint box larger than the element (a shadow), the layer containers cover the
+    // paint box and still turn around the element's center: the drawing lands where the tilt
+    // homography puts the paint box.
+    {
+        const sh = byId('sh');
+        sh.style.setProperty('--ax-tilt-mode', 'absolute');
+        sh.style.setProperty('--ax-tilt-depth', '30px');
+        // A paint box far off center, so a wrong origin shows.
+        sh.style.setProperty('--ax-shadow-y', '40px');
+        sh.style.setProperty('--ax-tilt-perspective', '300px');
+        await frames(4);
+        await ask('press-sh');
+        await frames(8);
+        const state = sh.debugState;
+        const fill = sh.shadowRoot!.querySelector('.layer-fill') as HTMLElement;
+        if (state.tilt) {
+            const host = sh.getBoundingClientRect();
+            const got = fill.getBoundingClientRect();
+            const p = state.paint;
+            const H = tiltHomography(state.tilt);
+            const pts = [
+                { x: p.left, y: p.top },
+                { x: p.left + p.width, y: p.top },
+                { x: p.left + p.width, y: p.top + p.height },
+                { x: p.left, y: p.top + p.height },
+            ].map((q) => apply(H, q));
+            const xs = pts.map((q) => q.x + host.left);
+            const ys = pts.map((q) => q.y + host.top);
+            const err = Math.max(
+                Math.abs(Math.min(...xs) - got.left),
+                Math.abs(Math.max(...xs) - got.right),
+                Math.abs(Math.min(...ys) - got.top),
+                Math.abs(Math.max(...ys) - got.bottom)
+            );
+            check('tilted paint box turns around the element center', err < 0.5, `err=${err.toFixed(3)}`);
+        } else {
+            check('tilted paint box turns around the element center', false, 'no tilt');
+        }
+        await ask('release');
+        await frames(8);
+        for (const name of ['mode', 'depth', 'perspective']) sh.style.removeProperty(`--ax-tilt-${name}`);
+        sh.style.setProperty('--ax-shadow-y', '6px');
+    }
 
     // 5a. Nested surfaces: with the outer one tilted, the inner one maps the pointer through
     // the outer tilt (its bounding rect is the box around a projected quad by then).

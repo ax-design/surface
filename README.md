@@ -293,6 +293,8 @@ registerLayer('glow', () => ({
 
 A paint box larger than the element overlaps its neighbors, and the browser may then have to composite them separately. Ask only for what you draw.
 
+While the surface is tilted, it puts the tilt on each layer's container. If your layer uses `backdrop-filter`, set `tiltsItself: true` and apply `frame.tiltTransform` to your own elements, around the center of the element's box: inside `position: sticky`, Firefox renders a backdrop-filter under a transformed ancestor with the wrong backdrop.
+
 ## Writing an element
 
 Subclass `AxSurface` to make an element with its own property names. `layerNames_()` picks the layers, `shapeFor()` and `borderWidthsFor()` read the shape, and `tiltParams()` and `tiltPerspective()` read the tilt:

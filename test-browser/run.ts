@@ -85,6 +85,10 @@ async function drive(d: Driver) {
                 await d.eval(`(window.__pointer = { x: ${x}, y: ${y} })`);
                 await d.move(x, y);
                 await d.down();
+            } else if (state.step === 'press-sh') {
+                const r = await rect('sh');
+                await d.move(r.x + r.w - 6, r.y + 6);
+                await d.down();
             } else if (state.step === 'press-outer') {
                 const r = await rect('outer');
                 await d.move(r.x + r.w - 8, r.y + 8);
