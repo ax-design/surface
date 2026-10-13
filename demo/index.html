@@ -110,7 +110,9 @@
     --ax-tilt-mode: absolute; --ax-tilt-depth: 3px; --ax-tilt-perspective: 600px;
   }
 
-  .weather { --ax-radius: 20px; --ax-corner-bottom-right-shape: scoop; --ax-bottom-right-radius: 26px; }
+  /* A glass tile whose shape animates: the scoop grows on hover. */
+  .weather { --ax-radius: 20px; --ax-corner-bottom-right-shape: scoop; --ax-bottom-right-radius: 26px; transition: --ax-bottom-right-radius 0.4s; }
+  .weather:hover { --ax-bottom-right-radius: 44px; }
 
   /* The play button sits on the bottom edge, in a cradle 8px wider than the button. The cradle
      is a rounded notch, so it can follow the button from a circle to a rounded square. */
