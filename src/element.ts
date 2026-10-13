@@ -5,9 +5,9 @@ import type { LengthPercentage, PropertyValue } from '@ax-design/typed-om';
 import type { TriggerTarget } from './triggers.js';
 import type { PointerListener, PointerState } from './global.js';
 import { services } from './global.js';
-import { createLayer } from './layer.js';
+import { createLayer, whenLayerRegistered } from './layer.js';
 import type { LocalPointer, PaintBox, SurfaceFrame, SurfaceLayer } from './layer.js';
-import { PRIORITY_ANIMATING, PRIORITY_IDLE, PRIORITY_POINTER, PRIORITY_PRESSED } from './scheduler.js';
+import { PRIORITY_IDLE, PRIORITY_POINTER, PRIORITY_PRESSED } from './scheduler.js';
 import type { FrameClient, Quality } from './scheduler.js';
 import { CORE_SCHEMA, Values, borderWidthsFrom, shapeSpecFrom } from './schema.js';
 import { isResting, lerpTilt, restingTilt, tiltFor, tiltTransform } from './tilt.js';
@@ -64,6 +64,7 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
     private tiltBox: HTMLElement;
     private layerBox: HTMLElement;
     private layers: SurfaceLayer[] = [];
+    private pendingLayers: (() => void)[] = [];
     // Names from the attribute, and the names of the layers that exist (unknown ones skipped).
     private layerNames: string[] = [];
     private activeNames: string[] = [];
@@ -97,6 +98,7 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
     private uniformBorder: number | null = null;
     private hostAnimating = false;
     private rect: DOMRect | null = null;
+    private lastRect: DOMRect | null = null;
     private local: LocalPointer | null = null;
     private animating = false;
 
@@ -132,8 +134,16 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
         s.scheduler.cancel(this);
         this.removeEventListener('pointerdown', this.onPointerDown);
         this.stopObserving();
+        this.pendingLayers.forEach((cancel) => cancel());
+        this.pendingLayers = [];
         this.visible = false;
     }
+
+    private onLayerRegistered = () => {
+        if (!this.connected) return;
+        this.layerNames = [];
+        this.buildLayers();
+    };
 
     attributeChangedCallback(name: string) {
         if (!this.connected) return;
@@ -184,7 +194,9 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
 
     private buildLayers() {
         const names = (this.getAttribute('layers') || '').split(/\s+/).filter(Boolean);
-        if (names.join(' ') === this.layerNames.join(' ') && this.binding) return;
+        if (names.join(' ') === this.layerNames.join(' ') && this.binding && !this.pendingLayers.length) return;
+        this.pendingLayers.forEach((cancel) => cancel());
+        this.pendingLayers = [];
         for (const layer of this.layers) layer.detach();
         this.layerBox.innerHTML = '';
         this.layers = [];
@@ -194,8 +206,8 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
         for (const name of names) {
             const layer = createLayer(name);
             if (!layer) {
-                // eslint-disable-next-line no-console
-                console.warn(`ax-surface: unknown layer "${name}"`);
+                // Rebuild once the layer gets registered.
+                this.pendingLayers.push(whenLayerRegistered(name, this.onLayerRegistered));
                 continue;
             }
             this.layers.push(layer);
@@ -275,11 +287,18 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
         if (this.connected && this.visible) services().scheduler.request(this);
     }
 
+    // Pressed first, then under the pointer, then near and large surfaces: area over the
+    // squared distance from the pointer to the surface (from the last measured rect).
     priority(): number {
         if (this.pressPoint && !this.released) return PRIORITY_PRESSED;
         if (this.local && this.local.inside) return PRIORITY_POINTER;
-        if (this.animating) return PRIORITY_ANIMATING;
-        return PRIORITY_IDLE;
+        const pointer = services().pointer;
+        const r = this.lastRect;
+        if (!r || !pointer.present) return this.animating ? 1 : PRIORITY_IDLE;
+        const dx = Math.max(r.left - pointer.x, 0, pointer.x - r.right);
+        const dy = Math.max(r.top - pointer.y, 0, pointer.y - r.bottom);
+        const d = Math.sqrt(dx * dx + dy * dy);
+        return (this.width * this.height) / ((1 + d) * (1 + d));
     }
 
     // Phase 1: style and layout reads only.
@@ -296,6 +315,7 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
         const pointer = services().pointer;
         const wantsPointer = this.pointerDirty || this.tiltDirty || this.animating;
         this.rect = wantsPointer && (pointer.present || this.pressPoint) ? this.getBoundingClientRect() : null;
+        if (this.rect) this.lastRect = this.rect;
     }
 
     // Phase 2: geometry, no DOM access.
@@ -365,6 +385,7 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
                 y: p.y,
                 inside: p.x >= 0 && p.y >= 0 && p.x <= this.width && p.y <= this.height,
                 pressed: !!this.pressPoint && !this.released,
+                pointerType: pointer.pointerType,
             };
         } else if (!pointer.present) {
             this.local = null;

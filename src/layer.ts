@@ -16,7 +16,9 @@ export interface LocalPointer {
     x: number;
     y: number;
     inside: boolean;
+    // True from a pointerdown on this surface until the release.
     pressed: boolean;
+    pointerType: string;
 }
 
 export interface SurfaceFrame {
@@ -59,9 +61,24 @@ export type LayerFactory = () => SurfaceLayer;
 
 const registry: { [name: string]: LayerFactory } = {};
 
+// Surfaces waiting for a layer that was not registered yet, so the order in which packages
+// register does not matter.
+const waiting: { [name: string]: Set<() => void> } = {};
+
 export function registerLayer(name: string, factory: LayerFactory): void {
     if (registry[name]) throw new Error(`Surface layer "${name}" is already registered`);
     registry[name] = factory;
+    const callbacks = waiting[name];
+    if (!callbacks) return;
+    delete waiting[name];
+    callbacks.forEach((callback) => callback());
+}
+
+export function whenLayerRegistered(name: string, callback: () => void): () => void {
+    (waiting[name] || (waiting[name] = new Set())).add(callback);
+    return () => {
+        if (waiting[name]) waiting[name].delete(callback);
+    };
 }
 
 export function createLayer(name: string): SurfaceLayer | null {

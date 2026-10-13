@@ -2,23 +2,28 @@
 // over the clients that asked for it: read (style, layout), compute (pure math), write (DOM).
 // Clients never read layout after another client wrote, so a frame forces at most one layout.
 //
-// Quality runs at full by default. It degrades only when frames are measured to be late, with
-// hysteresis, and the highest-priority clients (pressed, under the pointer) degrade last.
+// Full speed by default: every requesting client runs every frame. Only when late frames are
+// measured (with hysteresis) does the scheduler start a frame budget: clients run in priority
+// order (pressed, under the pointer, then near and large ones first) until their estimated
+// cost fills the budget, and the rest wait for a later frame. A waiting client gains priority
+// with every frame it waits, so lower frame rates never turn into starvation (the aging rule
+// of the tiqian CoordinationService).
 
 export interface FrameClient {
     read(now: number): void;
     compute(now: number): void;
     write(now: number, quality: Quality): void;
-    // Larger is more important.
+    // Larger is more important. See the PRIORITY_* constants.
     priority(): number;
 }
 
-// 0 = full, 1 = reduced detail, 2 = every other frame, 3 = frozen.
+// 0 = full speed, 1 to 3 = increasing load measured. Layers may reduce detail at higher levels.
 export type Quality = 0 | 1 | 2 | 3;
 
-export const PRIORITY_PRESSED = 3;
-export const PRIORITY_POINTER = 2;
-export const PRIORITY_ANIMATING = 1;
+// Always run, even over budget.
+export const PRIORITY_PRESSED = 1e12;
+export const PRIORITY_POINTER = 1e11;
+// Below PRIORITY_POINTER, priorities are free-form scores (area over squared distance).
 export const PRIORITY_IDLE = 0;
 
 const SLOW_RATIO = 1.5;
@@ -27,18 +32,32 @@ const HEALTHY_FRAMES_TO_RECOVER = 30;
 // Intervals outside this window come from suspended tabs or the first frame, not from load.
 const MIN_INTERVAL = 4;
 const MAX_INTERVAL = 150;
+// Share of the frame interval the budget may use, per level.
+const BUDGET_SHARE = [1, 0.4, 0.25, 0.15];
+const MIN_BUDGET = 1.5;
+// Cost guess for a client never measured, ms.
+const DEFAULT_COST = 0.2;
+// Each waited frame adds this much to log10(priority).
+const AGING_STEP = 0.75;
+
+interface Entry {
+    cost: number;
+    deferred: number;
+}
 
 export class Scheduler {
     private pending: FrameClient[] = [];
     private queued = new Set<FrameClient>();
+    private entries = new Map<FrameClient, Entry>();
     private rafId = 0;
     private last = 0;
     private interval = 16.67;
     private slow = 0;
     private healthy = 0;
-    private frame = 0;
-    // Global degradation level, 0 to 3.
+    // Global load level, 0 to 3.
     level: Quality = 0;
+    // For tests and diagnostics: clients deferred in the last frame.
+    lastDeferred = 0;
 
     request(client: FrameClient): void {
         if (this.queued.has(client)) return;
@@ -48,9 +67,19 @@ export class Scheduler {
     }
 
     cancel(client: FrameClient): void {
+        this.entries.delete(client);
         if (!this.queued.delete(client)) return;
         const i = this.pending.indexOf(client);
         if (i >= 0) this.pending.splice(i, 1);
+    }
+
+    private entry(client: FrameClient): Entry {
+        let e = this.entries.get(client);
+        if (!e) {
+            e = { cost: DEFAULT_COST, deferred: 0 };
+            this.entries.set(client, e);
+        }
+        return e;
     }
 
     private measure(now: number) {
@@ -79,36 +108,59 @@ export class Scheduler {
         this.last = now;
     }
 
-    // Clients above the top priority keep full quality until the global level reaches 3.
-    private qualityFor(client: FrameClient): Quality {
-        if (this.level === 0) return 0;
-        if (client.priority() >= PRIORITY_POINTER) return this.level === 3 ? 1 : 0;
-        return this.level;
+    // Picks the clients of this frame. Returns them in priority order.
+    private select(clients: FrameClient[]): FrameClient[] {
+        if (this.level === 0) {
+            for (const c of clients) this.entry(c).deferred = 0;
+            this.lastDeferred = 0;
+            return clients;
+        }
+        const scored = clients.map((c) => {
+            const p = c.priority();
+            const e = this.entry(c);
+            return { c, p, e, score: Math.log(1 + Math.max(0, p)) / Math.LN10 + e.deferred * AGING_STEP };
+        });
+        scored.sort((a, b) => b.score - a.score);
+        const budget = Math.max(MIN_BUDGET, this.interval * BUDGET_SHARE[this.level]);
+        let spent = 0;
+        const chosen: FrameClient[] = [];
+        let deferred = 0;
+        for (const s of scored) {
+            if (s.p >= PRIORITY_POINTER || spent + s.e.cost <= budget || chosen.length === 0) {
+                chosen.push(s.c);
+                spent += s.e.cost;
+                s.e.deferred = 0;
+            } else {
+                s.e.deferred++;
+                deferred++;
+                this.request(s.c);
+            }
+        }
+        this.lastDeferred = deferred;
+        return chosen;
     }
 
     private run = (now: number) => {
         this.rafId = 0;
-        this.frame++;
         this.measure(now);
         const clients = this.pending;
         this.pending = [];
         this.queued.clear();
 
-        const active: FrameClient[] = [];
-        const qualities: Quality[] = [];
-        for (const client of clients) {
-            const quality = this.qualityFor(client);
-            // Level 2 skips every other frame; level 3 freezes. Skipped clients stay queued.
-            if ((quality === 2 && this.frame % 2 === 1) || quality === 3) {
-                this.request(client);
-                continue;
-            }
-            active.push(client);
-            qualities.push(quality);
+        const active = this.select(clients);
+        const costs = new Array<number>(active.length).fill(0);
+        const timed = (i: number, f: () => void) => {
+            const t = performance.now();
+            safely(f);
+            costs[i] += performance.now() - t;
+        };
+        for (let i = 0; i < active.length; i++) timed(i, () => active[i].read(now));
+        for (let i = 0; i < active.length; i++) timed(i, () => active[i].compute(now));
+        for (let i = 0; i < active.length; i++) timed(i, () => active[i].write(now, this.level));
+        for (let i = 0; i < active.length; i++) {
+            const e = this.entry(active[i]);
+            e.cost = e.cost * 0.7 + costs[i] * 0.3;
         }
-        for (const c of active) safely(() => c.read(now));
-        for (const c of active) safely(() => c.compute(now));
-        for (let i = 0; i < active.length; i++) safely(() => active[i].write(now, qualities[i]));
 
         if (this.pending.length && !this.rafId) this.rafId = requestAnimationFrame(this.run);
         else if (!this.pending.length) this.last = 0;

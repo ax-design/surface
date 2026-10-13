@@ -4,7 +4,7 @@ export interface BenchImpl {
     setup(mode: BorderDetectionMode): void;
     // Builds `count` interactive items under `root`. Resolves once the implementation has
     // registered all of them.
-    mount(root: HTMLElement, count: number): Promise<void>;
+    mount(root: HTMLElement, count: number, layers?: string): Promise<void>;
     // Element that receives pointer events in strictEdge mode.
     pointerTarget(root: HTMLElement): HTMLElement;
     // Called right after the toggle scenario flips the theme class.

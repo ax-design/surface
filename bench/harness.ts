@@ -4,8 +4,9 @@ import type { BenchImpl, BenchResult, BorderDetectionMode, FrameStats } from './
 import { legacy } from './impl-legacy.ts';
 import { probe, stats as probeStats } from './impl-probe.ts';
 import { surface } from './impl-surface.ts';
+import { surfaceReveal } from './impl-surface-reveal.ts';
 
-const IMPLS: Record<string, BenchImpl> = { legacy, probe, surface };
+const IMPLS: Record<string, BenchImpl> = { legacy, probe, surface, 'surface-reveal': surfaceReveal };
 
 // Work counter: every rAF callback the implementation schedules is timed. The harness itself
 // uses the unwrapped rAF so its own bookkeeping is not counted.

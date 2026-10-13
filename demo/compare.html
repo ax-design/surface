@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Reveal: legacy vs surface layer</title>
+<style>
+  body { margin: 0; padding: 20px; background: #1f2430; color: #ddd; font: 13px system-ui, sans-serif; }
+  .row { display: flex; gap: 12px; margin-bottom: 18px; }
+  button { width: 140px; height: 48px; border: 0; background: transparent; color: #eee; font: inherit; display: block; }
+  ax-reveal { background: #2b3242; }
+  ax-surface { --ax-fill-color: #2b3242; --ax-border-color: transparent; }
+  ax-reveal, ax-surface { --reveal-color: rgb(255, 255, 255); --reveal-opacity: 0.5; }
+  /* Legacy shape parameters and their surface equivalents. */
+  ax-reveal { --reveal-border-decoration-type: round; --reveal-border-decoration-radius: 8px; --reveal-border-width: 2px; }
+  ax-surface { --ax-radius: 8px; --ax-border-width: 2px; width: 140px; height: 48px; }
+  .bevel ax-reveal, ax-reveal.bevel { --reveal-border-decoration-type: bevel; --reveal-border-decoration-radius: 12px; }
+  ax-surface.bevel { --ax-radius: 12px; --ax-corner-shape: bevel; }
+  ax-surface.bun { --ax-radius: 24px; --ax-edge-left-kind: arc; --ax-edge-left-depth: -8px; --ax-edge-left-span: 40%;
+    --ax-edge-right-kind: arc; --ax-edge-right-depth: -8px; --ax-edge-right-span: 40%; }
+  ax-surface.tilt { --ax-tilt-mode: absolute; --ax-tilt-depth: 2px; }
+  ax-surface button { width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<ax-reveal-provider><ax-reveal-bound>
+<div>legacy &lt;ax-reveal&gt;</div>
+<div class="row" id="legacy">
+  <ax-reveal><button>round</button></ax-reveal>
+  <ax-reveal class="bevel"><button>bevel</button></ax-reveal>
+  <ax-reveal><button>round</button></ax-reveal>
+</div>
+</ax-reveal-bound></ax-reveal-provider>
+<div>&lt;ax-surface layers="fill reveal"&gt;</div>
+<div class="row" id="surface">
+  <ax-surface layers="fill reveal"><button>round</button></ax-surface>
+  <ax-surface layers="fill reveal" class="bevel"><button>bevel</button></ax-surface>
+  <ax-surface layers="fill reveal" class="bun tilt"><button>bun + tilt</button></ax-surface>
+</div>
+<script type="module" src="./compare.ts"></script>
+</body>
+</html>

@@ -4,3 +4,4 @@ bench/results/
 bench/results-mac/
 test-browser/dist/
 dist/
+demo/dist/

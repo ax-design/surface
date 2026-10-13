@@ -1,6 +1,6 @@
 // The new stack: <ax-surface layers="fill"> with the full read, detect and render pipeline.
 import { StyleBinding } from '@ax-design/typed-om';
-import { CORE_SCHEMA, register } from '../src/index.js';
+import { CORE_SCHEMA, register } from '@ax-design/surface';
 import type { BenchImpl } from './types.ts';
 
 export const surface: BenchImpl = {
@@ -12,12 +12,12 @@ export const surface: BenchImpl = {
         if (variant === 'unregistered') (CSS as unknown as { registerProperty?: unknown }).registerProperty = undefined;
         register();
     },
-    mount(root, count) {
+    mount(root, count, layers = 'fill') {
         const grid = document.createElement('div');
         grid.className = 'grid';
         for (let i = 0; i < count; i++) {
             const s = document.createElement('ax-surface');
-            s.setAttribute('layers', 'fill');
+            s.setAttribute('layers', layers);
             const button = document.createElement('button');
             button.className = 'btn';
             button.textContent = `Item ${i}`;
@@ -31,8 +31,8 @@ export const surface: BenchImpl = {
                 const pending = Array.prototype.some.call(grid.children, (s: Element) => {
                     const r = s.getBoundingClientRect();
                     if (r.bottom < 0 || r.top > innerHeight) return false;
-                    const path = s.shadowRoot && s.shadowRoot.querySelector('.layer-fill path');
-                    return !path || !path.getAttribute('d');
+                    const layer = s.shadowRoot && s.shadowRoot.querySelector(`.layer-${layers.split(' ')[0]} > *`);
+                    return !layer;
                 });
                 if (pending) requestAnimationFrame(check);
                 else resolve();
