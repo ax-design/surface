@@ -47,13 +47,15 @@ ax-surface {
 }
 ```
 
-Layers are drawn in the order you list them. `fill` comes with this package, other packages add more, for example `reveal` from `@ax-design/reveal-highlight`:
+Layers are drawn in the order you list them, and your content is always on top. `fill` and `shadow` come with this package, other packages add more, for example `reveal` from `@ax-design/reveal-highlight` and `acrylic` from `@ax-design/acrylic`:
 
 ```html
-<ax-surface layers="fill reveal">
+<ax-surface layers="shadow fill reveal">
   <button class="my-button">Hello</button>
 </ax-surface>
 ```
+
+Want to try the properties? Run `bun install && bun run demo` in this repository and open the page it prints. It has a playground, shapes after the Material 3 shape set and a few tiles.
 
 Surfaces only work while they are visible, read their styles only after something changed, and lower the frame rate of far and small surfaces when the page starts dropping frames.
 
@@ -147,7 +149,7 @@ Shape properties are not inherited, set them on the `ax-surface` element itself.
 
 **Default:** `50%`
 
-**Description:** Where the middle of the feature sits along the side.
+**Description:** Where the middle of the feature sits along the side. Sides run clockwise: `top` from left to right, `right` from top to bottom, `bottom` from right to left and `left` from bottom to top. So `--ax-edge-bottom-at: 20%` is near the bottom right corner.
 
 ### --ax-edge-{side}-ratio
 
@@ -245,6 +247,22 @@ Shape properties are not inherited, set them on the `ax-surface` element itself.
 
 **Description:** For the `fill` layer, the color of the border.
 
+### --ax-shadow-color
+
+**Type:** `<color>`
+
+**Default:** `rgba(0, 0, 0, 0.3)`
+
+**Description:** For the `shadow` layer. Unlike `box-shadow`, the shadow follows the shape, tails and bites included. Like `box-shadow`, there's no shadow under the shape, so a translucent layer on top stays clean.
+
+### --ax-shadow-blur, --ax-shadow-x, --ax-shadow-y
+
+**Type:** `<length>`
+
+**Default:** `12px`, `0px`, `4px`
+
+**Description:** For the `shadow` layer, the blur radius and the offset, with the same meaning as in `box-shadow`.
+
 ## Writing a layer
 
 A layer is an object that draws one thing on the surface. Register it with a name, then use the name in the `layers` attribute:
@@ -261,6 +279,19 @@ registerLayer('outline', () => ({
   },
 }));
 ```
+
+Layers draw inside the paint box (`frame.paint`): the element's box, grown to fit features that go out of the shape. If your layer paints outside the shape (a glow, a shadow), tell the surface how far with `overflow`, in px, for every side or as `[top, right, bottom, left]`:
+
+```javascript
+registerLayer('glow', () => ({
+  overflow(values, width, height) {
+    return 16;
+  },
+  // ...
+}));
+```
+
+A paint box larger than the element overlaps its neighbors, and the browser may then have to composite them separately. Ask only for what you draw.
 
 ## Writing an element
 

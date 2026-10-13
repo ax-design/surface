@@ -59,8 +59,13 @@ export interface SurfaceLayer {
     readonly static?: boolean;
     // Distance in px from the surface beyond which the layer draws nothing.
     reach?(width: number, height: number): number;
-    // How far outside the shape the layer may paint, in px (glow, light radius).
-    overflow?(frame: SurfaceFrame): number;
+    // How far outside the shape the layer paints, in px: one number for every side or
+    // [top, right, bottom, left] (shadows, glows). The paint box grows by the largest request of
+    // the layers. Called when the geometry is computed again (style or size changes), so the
+    // result may depend on the layer's own properties. A paint box larger than the element
+    // overlaps its neighbors, and the browser may then composite them separately: ask only for
+    // what you draw.
+    overflow?(values: Values, width: number, height: number): number | Quad<number>;
     attach(container: HTMLElement): void;
     detach(): void;
     // Draws the frame. Returns true to request another frame (running animation).

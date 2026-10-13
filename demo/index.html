@@ -1,45 +1,297 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Surface demo</title>
+<title>Surface Demo - Axiom Design System</title>
 <style>
-  body { margin: 0; padding: 24px; background: #eef0f3; font: 14px/1.3 system-ui, sans-serif; color: #111; }
-  .grid { display: flex; flex-wrap: wrap; gap: 28px; }
-  ax-surface { width: 160px; height: 64px; --ax-fill-color: #fff; --ax-border-color: #3b4252; --ax-border-width: 1.5px; }
-  ax-surface .label { display: flex; align-items: center; justify-content: center; height: 100%; }
-  .round { --ax-radius: 12px; }
-  .pill { --ax-radius: 50%; }
-  .bevel { --ax-radius: 14px; --ax-corner-shape: bevel; }
-  .scoop { --ax-radius: 14px; --ax-corner-shape: scoop; }
-  .bun { --ax-radius: 24px; --ax-edge-left-kind: arc; --ax-edge-left-depth: -8px; --ax-edge-left-span: 40%;
-         --ax-edge-right-kind: arc; --ax-edge-right-depth: -8px; --ax-edge-right-span: 40%; }
-  .slanted { --ax-radius: 8px; --ax-corner-top-left-shift-y: 20%; }
-  .italic { --ax-radius: 6px; --ax-corner-top-left-shift-x: 12%; --ax-corner-bottom-right-shift-x: 12%; }
-  .tab { --ax-radius: 8px; --ax-edge-top-kind: rect; --ax-edge-top-depth: 10px; --ax-edge-top-span: 40%; --ax-edge-top-at: 30%;
-         --ax-edge-top-tip-radius: 6px; --ax-edge-top-shoulder-radius: 4px; }
-  .ticket { --ax-radius: 6px; --ax-edge-left-kind: arc; --ax-edge-left-depth: -9px; --ax-edge-left-span: 18px;
-            --ax-edge-right-kind: arc; --ax-edge-right-depth: -9px; --ax-edge-right-span: 18px; --ax-edge-right-shoulder-radius: 2px; --ax-edge-left-shoulder-radius: 2px; }
-  .tilt { --ax-tilt-mode: absolute; --ax-tilt-depth: 2px; }
-  .theme-alt ax-surface { --ax-fill-color: #1e2533; --ax-border-color: #8fbcbb; color: #eceff4; }
-  .theme-alt .round { --ax-radius: 4px; --ax-corner-shape: bevel; }
-  .hoverable:hover { --ax-radius: 32px; --ax-fill-color: #e5f0ff; }
+  :root {
+    --page: #f3f4f7;
+    --panel: #ffffff;
+    --ink: #161a23;
+    --muted: #5d6475;
+    --line: #dfe2ea;
+    --accent: #3d5afe;
+    --wallpaper:
+      radial-gradient(circle at 18% 22%, #ff7a59 0, transparent 34%),
+      radial-gradient(circle at 78% 18%, #7c4dff 0, transparent 38%),
+      radial-gradient(circle at 70% 82%, #00bfa5 0, transparent 36%),
+      radial-gradient(circle at 24% 86%, #ffca28 0, transparent 30%),
+      #141927;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1080px; margin: 0 auto; padding: 0 16px 80px; }
+  h1 { font-size: 40px; line-height: 1.1; margin: 0; letter-spacing: -0.02em; }
+  h2 { font-size: 22px; margin: 64px 0 6px; letter-spacing: -0.01em; }
+  p.lead { color: var(--muted); margin: 0 0 20px; max-width: 640px; }
+  code, pre { font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+  /* Header with a shape that morphs through a few of the gallery shapes. */
+  header { display: flex; align-items: center; gap: 32px; padding: 56px 0 8px; }
+  header .text { flex: 1; }
+  header p { color: var(--muted); margin: 10px 0 0; max-width: 560px; font-size: 16px; }
+  .morph {
+    flex: none; width: 112px; height: 112px;
+    --ax-fill-color: var(--accent); --ax-border-width: 0px;
+    --ax-shadow-color: rgba(61, 90, 254, 0.35); --ax-shadow-blur: 24px; --ax-shadow-y: 10px;
+    --ax-edge-top-kind: triangle; --ax-edge-top-span: 25px; --ax-edge-top-tip-radius: 3px; --ax-edge-top-shoulder-radius: 9px;
+    --ax-edge-bottom-kind: triangle; --ax-edge-bottom-span: 72%; --ax-edge-bottom-tip-radius: 8px;
+    animation: morph 8s cubic-bezier(0.6, 0, 0.3, 1) infinite, spin 16s linear infinite;
+  }
+  @keyframes morph {
+    0%, 100% { --ax-top-left-radius: 50%; --ax-top-right-radius: 50%; --ax-bottom-right-radius: 50%; --ax-bottom-left-radius: 50%;
+      --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 0%; --ax-corner-bottom-left-shift-x: 0%;
+      --ax-corner-bottom-left-shift-y: 0%; --ax-edge-top-depth: 0px; --ax-edge-bottom-depth: 0px; }
+    25% { --ax-top-left-radius: 28%; --ax-top-right-radius: 28%; --ax-bottom-right-radius: 28%; --ax-bottom-left-radius: 28%;
+      --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 0%; --ax-corner-bottom-left-shift-x: 0%;
+      --ax-corner-bottom-left-shift-y: 0%; --ax-edge-top-depth: 0px; --ax-edge-bottom-depth: 0px; }
+    50% { --ax-top-left-radius: 14%; --ax-top-right-radius: 14%; --ax-bottom-right-radius: 14%; --ax-bottom-left-radius: 14%;
+      --ax-corner-top-left-shift-y: 50%; --ax-corner-top-right-shift-x: 50%; --ax-corner-bottom-right-shift-y: 50%; --ax-corner-bottom-left-shift-x: 50%;
+      --ax-corner-bottom-left-shift-y: 0%; --ax-edge-top-depth: 0px; --ax-edge-bottom-depth: 0px; }
+    75% { --ax-top-left-radius: 28%; --ax-top-right-radius: 28%; --ax-bottom-right-radius: 14%; --ax-bottom-left-radius: 14%;
+      --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 44%; --ax-corner-bottom-left-shift-x: 0%;
+      --ax-corner-bottom-left-shift-y: 44%; --ax-edge-top-depth: -17.9px; --ax-edge-bottom-depth: 44.8px; }
+  }
+  @keyframes morph-small {
+    0%, 100% { --ax-top-left-radius: 50%; --ax-top-right-radius: 50%; --ax-bottom-right-radius: 50%; --ax-bottom-left-radius: 50%;
+      --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 0%; --ax-corner-bottom-left-shift-x: 0%;
+      --ax-corner-bottom-left-shift-y: 0%; --ax-edge-top-depth: 0px; --ax-edge-bottom-depth: 0px; }
+    25% { --ax-top-left-radius: 28%; --ax-top-right-radius: 28%; --ax-bottom-right-radius: 28%; --ax-bottom-left-radius: 28%;
+      --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 0%; --ax-corner-bottom-left-shift-x: 0%;
+      --ax-corner-bottom-left-shift-y: 0%; --ax-edge-top-depth: 0px; --ax-edge-bottom-depth: 0px; }
+    50% { --ax-top-left-radius: 14%; --ax-top-right-radius: 14%; --ax-bottom-right-radius: 14%; --ax-bottom-left-radius: 14%;
+      --ax-corner-top-left-shift-y: 50%; --ax-corner-top-right-shift-x: 50%; --ax-corner-bottom-right-shift-y: 50%; --ax-corner-bottom-left-shift-x: 50%;
+      --ax-corner-bottom-left-shift-y: 0%; --ax-edge-top-depth: 0px; --ax-edge-bottom-depth: 0px; }
+    75% { --ax-top-left-radius: 28%; --ax-top-right-radius: 28%; --ax-bottom-right-radius: 14%; --ax-bottom-left-radius: 14%;
+      --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 44%; --ax-corner-bottom-left-shift-x: 0%;
+      --ax-corner-bottom-left-shift-y: 44%; --ax-edge-top-depth: -10.2px; --ax-edge-bottom-depth: 25.6px; }
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Playground */
+  .playground { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+  .playground .left { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .stage {
+    position: relative; min-height: 460px; border-radius: 14px; background: var(--wallpaper);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .stage::before {
+    content: "Axiom"; position: absolute; left: 24px; bottom: 6px; font-size: 120px; font-weight: 800; letter-spacing: -0.04em;
+    color: rgba(255, 255, 255, 0.85);
+  }
+  #subject { width: 240px; height: 150px; color: #fff; }
+  #subject .label { display: flex; height: 100%; align-items: center; justify-content: center; font-weight: 600; font-size: 16px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
+  .stage .hint { position: absolute; top: 12px; left: 16px; color: rgba(255, 255, 255, 0.7); font-size: 12px; }
+  .output { background: #10131c; color: #d8dcea; border-radius: 12px; padding: 14px 16px; margin: 0; overflow: auto; max-height: 280px; }
+  .output .p { color: #8fb4ff; }
+
+  .controls { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 4px 16px 16px; }
+  .controls h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 18px 0 8px; }
+  .row { display: grid; grid-template-columns: 96px 1fr 58px; align-items: center; gap: 8px; min-height: 30px; }
+  .row label { color: var(--muted); font-size: 13px; }
+  .row output { font: 12px ui-monospace, Menlo, monospace; text-align: right; color: var(--ink); }
+  .row input[type=range] { width: 100%; accent-color: var(--accent); }
+  .row select { grid-column: 2 / span 2; font: inherit; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  .row input[type=color] { grid-column: 2; width: 44px; height: 26px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; }
+  .segmented { display: flex; gap: 4px; margin: 4px 0 6px; }
+  .segmented button, .chips button {
+    font: inherit; font-size: 12px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink); cursor: pointer;
+  }
+  .segmented button[aria-pressed=true], .chips button[aria-pressed=true] { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* Gallery */
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 12px; }
+  .shape-card {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; height: 160px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; cursor: pointer; font: inherit; color: var(--muted);
+  }
+  .shape-card:hover { border-color: #b9c1d6; }
+  .shape-card ax-surface { --ax-fill-color: #c5cdfd; --ax-border-width: 0px; --ax-tilt-mode: absolute; --ax-tilt-depth: 3px; --ax-tilt-perspective: 300px; }
+  .shape-card:hover ax-surface { --ax-fill-color: #9fadff; }
+
+  /* Tiles */
+  .board { background: var(--wallpaper); border-radius: 18px; padding: 36px 28px 44px; }
+  .tiles { display: grid; grid-template-columns: repeat(4, 124px); grid-auto-rows: 124px; gap: 14px; justify-content: center; }
+  .tiles > * { color: #fff; }
+  .wide { grid-column: span 2; }
+  .tall { grid-row: span 2; }
+  .tile-text { display: flex; flex-direction: column; height: 100%; padding: 14px 16px; }
+  .tile-text .big { font-size: 30px; font-weight: 300; line-height: 1; margin-top: auto; }
+  .tile-text .small { font-size: 12px; opacity: 0.8; }
+  .glass {
+    --acrylic-tint-color: #ffffff; --acrylic-tint-opacity: 0.16; --acrylic-blur: 28px;
+    --reveal-color: rgb(255, 255, 255); --reveal-opacity: 0.4; --ax-border-width: 1px;
+    --ax-tilt-mode: absolute; --ax-tilt-depth: 3px; --ax-tilt-perspective: 600px;
+  }
+
+  .weather { --ax-radius: 20px; --ax-corner-bottom-right-shape: scoop; --ax-bottom-right-radius: 26px; }
+
+  /* The play button sits on the bottom edge, in a half circle 8px wider than the button. */
+  .player { display: block; width: 100%; height: calc(100% - 34px); --ax-radius: 22px;
+            --ax-edge-bottom-kind: arc; --ax-edge-bottom-depth: -42px; --ax-edge-bottom-span: 84px; --ax-edge-bottom-shoulder-radius: 10px; }
+  .player-wrap { position: relative; }
+  .player-wrap .tile-text { padding: 16px 18px; }
+  .player .cover { width: 72px; height: 72px; border-radius: 12px; background: linear-gradient(135deg, #ffca28, #ff7a59 60%, #7c4dff); margin-bottom: 12px; }
+  .play {
+    position: absolute; left: 50%; bottom: 0; margin-left: -34px; width: 68px; height: 68px;
+    --ax-radius: 50%; --ax-fill-color: #fff; --ax-border-width: 0px; --ax-shadow-color: rgba(0, 0, 0, 0.35); --ax-shadow-blur: 18px; --ax-shadow-y: 6px;
+    --reveal-color: rgb(61, 90, 254); --reveal-opacity: 0.35;
+    --ax-tilt-mode: absolute; --ax-tilt-depth: 3px; --ax-tilt-perspective: 300px;
+    transition: --ax-radius 0.25s;
+  }
+  .play:active { --ax-radius: 30%; }
+  .play svg { display: block; margin: 22px auto 0 26px; }
+
+  .bubble {
+    align-self: start; height: 92px; color: #161a23;
+    --ax-radius: 20px; --ax-fill-color: #ffffff; --ax-border-width: 0px;
+    --ax-shadow-color: rgba(0, 0, 0, 0.4); --ax-shadow-blur: 16px; --ax-shadow-y: 6px;
+    --ax-edge-bottom-kind: triangle; --ax-edge-bottom-at: 82%; --ax-edge-bottom-depth: 14px; --ax-edge-bottom-span: 26px;
+    --ax-edge-bottom-tip-radius: 3px; --ax-edge-bottom-shoulder-radius: 6px;
+    transition: --ax-edge-bottom-depth 0.3s, --ax-edge-bottom-at 0.3s;
+  }
+  /* Sides run clockwise, so on the bottom edge `at` counts from the right. */
+  .bubble:hover { --ax-edge-bottom-depth: 24px; --ax-edge-bottom-at: 74%; }
+  .bubble .tile-text { padding: 14px 18px; }
+  .bubble .tile-text .small { opacity: 0.6; }
+
+  .ticket {
+    color: #161a23; --ax-radius: 12px; --ax-fill-color: #fffaf0; --ax-border-width: 0px;
+    --ax-shadow-color: rgba(0, 0, 0, 0.35); --ax-shadow-blur: 14px; --ax-shadow-y: 5px;
+    --ax-edge-left-kind: arc; --ax-edge-left-depth: -11px; --ax-edge-left-span: 22px; --ax-edge-left-shoulder-radius: 2px;
+    --ax-edge-right-kind: arc; --ax-edge-right-depth: -11px; --ax-edge-right-span: 22px; --ax-edge-right-shoulder-radius: 2px;
+    --ax-tilt-mode: absolute; --ax-tilt-depth: 3px; --ax-tilt-perspective: 600px;
+  }
+  .ticket .tile-text { flex-direction: row; align-items: center; gap: 14px; }
+  .ticket .city { font-size: 26px; font-weight: 700; letter-spacing: 0.02em; }
+  .ticket .sep { flex: 1; border-top: 2px dashed #c9c2b2; position: relative; }
+  .ticket .meta { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font-size: 11px; color: #8a8270; }
+
+  .folder { margin-top: 12px; height: 112px; --ax-radius: 14px; --ax-edge-top-kind: rect; --ax-edge-top-at: 26%; --ax-edge-top-span: 44%; --ax-edge-top-depth: 12px;
+            --ax-edge-top-tip-radius: 8px; --ax-edge-top-shoulder-radius: 6px; }
+
+  .note { color: #3b3216; --ax-radius: 6px; --ax-fill-color: #ffe082; --ax-border-width: 0px;
+          --ax-corner-top-right-shape: bevel; --ax-top-right-radius: 28px;
+          --ax-shadow-color: rgba(0, 0, 0, 0.3); --ax-shadow-blur: 10px; --ax-shadow-y: 4px;
+          --ax-tilt-mode: absolute; --ax-tilt-depth: 2px; --ax-tilt-perspective: 500px; }
+  .note .tile-text { font-family: "Segoe Print", "Bradley Hand", cursive; font-size: 15px; }
+
+  .press { --ax-radius: 50%; --ax-fill-color: #3d5afe; --ax-border-width: 0px; --reveal-color: rgb(255, 255, 255); --reveal-opacity: 0.45;
+           --ax-shadow-color: rgba(20, 30, 120, 0.5); --ax-shadow-blur: 18px; --ax-shadow-y: 8px;
+           --ax-tilt-mode: absolute; --ax-tilt-depth: 3px; --ax-tilt-perspective: 400px;
+           transition: --ax-radius 0.35s cubic-bezier(0.3, 1.6, 0.5, 1), --ax-shadow-y 0.2s, --ax-shadow-blur 0.2s; }
+  .press:active { --ax-radius: 22%; --ax-shadow-y: 3px; --ax-shadow-blur: 8px; }
+  .press .tile-text { align-items: center; justify-content: center; font-weight: 600; }
+
+  .tag { --ax-radius: 10px; --ax-edge-left-kind: triangle; --ax-edge-left-span: 100%; --ax-edge-left-depth: 22px; --ax-edge-left-tip-radius: 6px;
+         margin-left: 22px; }
+  .tag .tile-text { justify-content: center; }
+  .tag .tile-text::before { content: ""; position: absolute; left: -6px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: rgba(20, 25, 39, 0.85); }
+
+  .heart { --ax-top-left-radius: 27px; --ax-top-right-radius: 27px; --ax-bottom-left-radius: 15px; --ax-bottom-right-radius: 15px;
+           --ax-corner-bottom-left-shift-y: 44%; --ax-corner-bottom-right-shift-y: 44%;
+           --ax-edge-top-kind: triangle; --ax-edge-top-depth: -17px; --ax-edge-top-span: 23px; --ax-edge-top-tip-radius: 3px; --ax-edge-top-shoulder-radius: 8px;
+           --ax-edge-bottom-kind: triangle; --ax-edge-bottom-depth: 42px; --ax-edge-bottom-span: 72%; --ax-edge-bottom-tip-radius: 7px;
+           --ax-fill-color: #ff4f7b; --ax-border-width: 0px; --reveal-color: rgb(255, 255, 255); --reveal-opacity: 0.5;
+           --ax-shadow-color: rgba(120, 0, 40, 0.5); --ax-shadow-blur: 16px; --ax-shadow-y: 6px;
+           --ax-tilt-mode: absolute; --ax-tilt-depth: 3px; --ax-tilt-perspective: 300px;
+           width: 104px; height: 96px; margin: 14px 10px; }
+
+  .loader { width: 64px; height: 64px; margin: 30px; --ax-fill-color: #ffffff; --ax-border-width: 0px;
+            --ax-edge-top-kind: triangle; --ax-edge-top-span: 14px; --ax-edge-top-tip-radius: 2px; --ax-edge-top-shoulder-radius: 5px;
+            --ax-edge-bottom-kind: triangle; --ax-edge-bottom-span: 72%; --ax-edge-bottom-tip-radius: 4px;
+            animation: morph-small 2.4s cubic-bezier(0.6, 0, 0.3, 1) infinite, spin 2.4s linear infinite; }
+  .loader-tile { display: flex; flex-direction: column; align-items: center; color: #fff; font-size: 12px; opacity: 0.85; }
+
+  footer { margin-top: 48px; color: var(--muted); font-size: 13px; }
+
+  @media (max-width: 860px) {
+    header { flex-direction: column; align-items: flex-start; }
+    .playground { grid-template-columns: 1fr; }
+    .playground .left { position: static; }
+    .tiles { grid-template-columns: repeat(2, 124px); }
+  }
 </style>
 </head>
 <body>
-<div class="grid" id="grid">
-  <ax-surface layers="fill" class="round tilt"><div class="label">round</div></ax-surface>
-  <ax-surface layers="fill" class="pill tilt"><div class="label">pill</div></ax-surface>
-  <ax-surface layers="fill" class="bevel"><div class="label">bevel</div></ax-surface>
-  <ax-surface layers="fill" class="scoop"><div class="label">scoop</div></ax-surface>
-  <ax-surface layers="fill" class="bun tilt"><div class="label">bun</div></ax-surface>
-  <ax-surface layers="fill" class="slanted"><div class="label">slanted</div></ax-surface>
-  <ax-surface layers="fill" class="italic tilt"><div class="label">italic</div></ax-surface>
-  <ax-surface layers="fill" class="tab"><div class="label">tab</div></ax-surface>
-  <ax-surface layers="fill" class="ticket tilt"><div class="label">ticket</div></ax-surface>
-  <ax-surface layers="fill" class="round hoverable"><div class="label">hover me</div></ax-surface>
-</div>
+<main>
+  <header>
+    <div class="text">
+      <h1>Surface</h1>
+      <p>One element for shape, border, tilt and every effect of Axiom Design System. Everything on this page is CSS custom properties, including the shape on the right, which is a CSS animation.</p>
+    </div>
+    <ax-surface class="morph" layers="shadow fill"></ax-surface>
+  </header>
+
+  <h2>Playground</h2>
+  <p class="lead">Pick layers and change the properties. Press the surface to tilt it, the reveal light and the border stay where they belong. The CSS for what you see is below.</p>
+  <section class="playground">
+    <div class="left">
+      <div class="stage">
+        <span class="hint">Press and hold to tilt</span>
+        <ax-surface id="subject"><div class="label">Hello, Surface</div></ax-surface>
+      </div>
+      <pre class="output" id="output"></pre>
+    </div>
+    <form class="controls" id="controls" autocomplete="off"></form>
+  </section>
+
+  <h2>Shapes</h2>
+  <p class="lead">Shapes after the Material 3 shape set, each one a rectangle with decorations: corner radius and shape, corners moved inward, and one feature per side. Click one to load it into the playground.</p>
+  <div class="gallery" id="gallery"></div>
+
+  <h2>Tiles</h2>
+  <p class="lead">A few tiles built from the same parts. Hover and press them.</p>
+  <div class="board">
+    <div class="tiles">
+      <ax-surface class="glass weather wide" layers="acrylic reveal">
+        <div class="tile-text"><span class="small">Hangzhou, light rain</span><span class="big">23°</span></div>
+      </ax-surface>
+
+      <ax-surface class="bubble wide" layers="shadow fill">
+        <div class="tile-text"><strong>Mira</strong><span>The bubble tail is an edge feature, and its shadow follows it.</span><span class="small">Hover me</span></div>
+      </ax-surface>
+
+      <div class="player-wrap wide tall">
+        <ax-surface class="glass player" layers="acrylic reveal">
+          <div class="tile-text"><div class="cover"></div><strong>Nightfall</strong><span class="small">Lumen Drift</span></div>
+        </ax-surface>
+        <ax-surface class="play" layers="shadow fill reveal">
+          <svg width="20" height="24" viewBox="0 0 20 24" aria-label="Play"><path d="M2 2l16 10L2 22z" fill="#3d5afe" stroke="#3d5afe" stroke-width="3" stroke-linejoin="round"/></svg>
+        </ax-surface>
+      </div>
+
+      <ax-surface class="glass folder" layers="acrylic reveal">
+        <div class="tile-text"><span class="small">Folder</span><span class="big" style="font-size: 22px">Drafts</span></div>
+      </ax-surface>
+
+      <ax-surface class="note" layers="shadow fill">
+        <div class="tile-text">Buy milk.<br>Fold the corner.</div>
+      </ax-surface>
+
+      <ax-surface class="ticket wide" layers="shadow fill">
+        <div class="tile-text"><span class="city">HGH</span><span class="sep"></span><span class="city">KIX</span></div>
+        <div class="meta">MU 729 · Gate 12 · 08:40</div>
+      </ax-surface>
+
+      <ax-surface class="press" layers="shadow fill reveal">
+        <div class="tile-text">Press me</div>
+      </ax-surface>
+
+      <ax-surface class="glass tag" layers="acrylic reveal" style="width: 102px">
+        <div class="tile-text"><span class="small">Sale</span><span class="big" style="font-size: 24px">-30%</span></div>
+      </ax-surface>
+
+      <ax-surface class="heart" layers="shadow fill reveal"></ax-surface>
+
+      <div class="loader-tile"><ax-surface class="loader" layers="fill"></ax-surface>Loading</div>
+    </div>
+  </div>
+
+  <footer>Built with @ax-design/surface, @ax-design/reveal-highlight and @ax-design/acrylic.</footer>
+</main>
 <script type="module" src="./demo.ts"></script>
 </body>
 </html>

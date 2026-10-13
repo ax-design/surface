@@ -239,6 +239,20 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         return this.values;
     }
 
+    // The largest `overflow` of the layers on each side: [top, right, bottom, left].
+    private layerOverflow(v: Values): Quad<number> {
+        const o: Quad<number> = [0, 0, 0, 0];
+        for (const layer of this.layers) {
+            if (!layer.overflow) continue;
+            const r = layer.overflow(v, this.width, this.height);
+            for (let i = 0; i < 4; i++) {
+                const side = typeof r === 'number' ? r : r[i];
+                if (side > o[i]) o[i] = side;
+            }
+        }
+        return o;
+    }
+
     // The largest `reach` of the layers, for boundary tests.
     protected layerReach(): number {
         let reach = 0;
@@ -489,10 +503,11 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             this.borderWidths = this.borderWidthsFor(v);
             this.shape = resolve(this.shapeFor(v, this.width, this.height), { borderWidths: this.borderWidths });
             const b = this.shape.bounds;
-            const left = Math.min(0, b.left) - ANTIALIAS_MARGIN;
-            const top = Math.min(0, b.top) - ANTIALIAS_MARGIN;
-            const right = Math.max(this.width, b.right) + ANTIALIAS_MARGIN;
-            const bottom = Math.max(this.height, b.bottom) + ANTIALIAS_MARGIN;
+            const o = this.layerOverflow(v);
+            const left = Math.min(0, b.left - o[3]) - ANTIALIAS_MARGIN;
+            const top = Math.min(0, b.top - o[0]) - ANTIALIAS_MARGIN;
+            const right = Math.max(this.width, b.right + o[1]) + ANTIALIAS_MARGIN;
+            const bottom = Math.max(this.height, b.bottom + o[2]) + ANTIALIAS_MARGIN;
             this.paint = { left, top, width: right - left, height: bottom - top };
         }
 

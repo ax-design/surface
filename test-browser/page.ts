@@ -58,6 +58,25 @@ async function run() {
     const expected = toSvgPath(resolve(shapeSpecFrom(st.values!, 160, 60), { borderWidths: borderWidthsFrom(st.values!) }).outline);
     check('fill path matches resolve()', fillPath(a) === expected && expected.length > 0, fillPath(a).slice(0, 60));
 
+    // 1b. A layer's overflow grows the paint box per side: shadow blur 10 reaches 15px, moved
+    // down by 6px.
+    {
+        const sh = byId('sh');
+        const p = sh.debugState.paint;
+        check('shadow overflow grows the paint box', p.left === -15 && p.top === -9 && p.width === 130 && p.height === 50 + 9 + 21, JSON.stringify(p));
+        const layers = sh.shadowRoot!.querySelector('.layers') as HTMLElement;
+        check('the layer box takes the paint box', layers.className === 'layers box' && layers.style.top === '-9px', layers.className + ' ' + layers.style.cssText);
+        const canvas = sh.shadowRoot!.querySelector('.layer-shadow canvas') as HTMLCanvasElement;
+        const ratio = canvas.width / p.width;
+        const alpha = (x: number, y: number) => canvas.getContext('2d')!.getImageData(Math.round((x - p.left) * ratio), Math.round((y - p.top) * ratio), 1, 1).data[3];
+        const below = alpha(50, 56);
+        const inside = alpha(50, 25);
+        const far = alpha(50, 70);
+        check('shadow is drawn below the shape', below > 60, `alpha=${below}`);
+        check('shadow is cut out under the shape', inside === 0, `alpha=${inside}`);
+        check('shadow fades out at the paint box edge', far < 8, `alpha=${far}`);
+    }
+
     // 2. Ancestor class change is picked up.
     const before = fillPath(a);
     document.body.classList.add('theme');
