@@ -340,3 +340,4 @@ Surface works in browsers released since 2018 (Chrome 70, Firefox 63, Safari 12)
 * `--ax-edge-kind`, `--ax-edge-depth` and the other shared edge properties set every side at once, and `--ax-corner-shoulder-radius` rounds where bevel, scoop and notch corners meet the sides.
 * The `cusp` edge kind.
 * The tilt goes on each layer and on the content instead of on a common parent. Inside `position: sticky`, Firefox showed the wrong backdrop through acrylic while a surface was pressed. Layers with a `backdrop-filter` set `tiltsItself` and apply `frame.tiltTransform` themselves.
+* 0.2.1: `release()` ends a press before the pointer is up, for containers that take the gesture over (a tile drag).
