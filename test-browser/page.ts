@@ -34,7 +34,9 @@ const ask = async (step: string) => {
 
 const byId = (id: string) => document.getElementById(id) as AxSurface;
 const fillPath = (el: AxSurface) => el.shadowRoot!.querySelector('.layer-fill path')!.getAttribute('d') || '';
-const observing = (el: AxSurface) => !!el.shadowRoot!.querySelector('.ax-typed-om-c');
+// Default surfaces register with the shared triggers; precise ones carry a detector.
+const observing = (el: AxSurface) => services().triggers.has(el) || !!el.shadowRoot!.querySelector('.ax-typed-om-c');
+const hasDetector = (el: AxSurface) => !!el.shadowRoot!.querySelector('.ax-typed-om-c');
 
 // Count every rAF the page schedules, to prove the scheduler sleeps when idle.
 let rafCalls = 0;
@@ -103,6 +105,38 @@ async function run() {
     await ask('release');
     await frames(8);
     check('released surface returns flat', tiltBox.style.transform === '', tiltBox.style.transform);
+
+    // 5b. Precise mode attaches a detector; default mode does not.
+    check('precise surface has a detector', hasDetector(byId('p')) && !hasDetector(a));
+    const pBefore = fillPath(byId('p'));
+    byId('p').style.setProperty('--ax-radius', '18px');
+    await frames(4);
+    check('precise surface sees an inline style change', fillPath(byId('p')) !== pBefore);
+
+    // 5c. Author transition on a custom property is followed frame by frame.
+    const m = byId('m');
+    const seen = new Set<string>();
+    m.classList.add('big');
+    const start = performance.now();
+    while (performance.now() - start < 450) {
+        await frames(1);
+        seen.add(fillPath(m));
+    }
+    const finalPath = fillPath(m);
+    m.classList.remove('big');
+    await frames(1);
+    m.style.transition = 'none';
+    m.classList.add('big');
+    await frames(4);
+    check('author transition renders intermediate frames', seen.size >= 4, `distinct=${seen.size}`);
+    check('author transition ends at the final shape', finalPath === fillPath(m));
+    m.style.transition = '';
+
+    // 5d. :checked through :has(), no attribute changes.
+    const c = byId('c');
+    const cBefore = fillPath(c);
+    await ask('click-cb');
+    check(':has(:checked) change re-renders', fillPath(c) !== cBefore);
 
     // 6. Idle: no animation frames at all.
     await frames(5);

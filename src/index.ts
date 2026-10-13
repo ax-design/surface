@@ -1,9 +1,17 @@
 import { AxSurface } from './element.js';
 import { createFillLayer } from './fill.js';
 import { registerLayer } from './layer.js';
+import { services } from './global.js';
 
 export { AxSurface } from './element.js';
 export { services } from './global.js';
+export { StyleTriggers, composedContains } from './triggers.js';
+export type { TriggerTarget } from './triggers.js';
+
+// Re-reads the styles of every visible surface, for changes the triggers cannot see.
+export function refreshAll(): void {
+    services().triggers.refreshAll();
+}
 export type { PointerListener, PointerState, Services } from './global.js';
 export { createLayer, registerLayer } from './layer.js';
 export type { LayerFactory, LocalPointer, PaintBox, SurfaceFrame, SurfaceLayer } from './layer.js';

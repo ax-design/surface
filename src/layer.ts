@@ -25,7 +25,12 @@ export interface SurfaceFrame {
     paint: PaintBox;
     shape: ResolvedShape;
     borderWidths: Quad<number>;
+    // The border width when all sides are equal and the surface is flat. Layers then draw the
+    // ring as a stroke of twice this width clipped to the outline (exact and free). Otherwise
+    // null, and `borderInner` holds the inner edge.
+    uniformBorder: number | null;
     // Inner edge of the border ring in local coordinates, compensated for the current tilt.
+    // Empty when uniformBorder is set.
     borderInner: Point[];
     // Current tilt of the surface, null when flat.
     tilt: Homography | null;

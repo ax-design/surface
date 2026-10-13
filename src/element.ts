@@ -1,6 +1,8 @@
 import { apply, borderInner, invert, resolve, tiltHomography } from '@ax-design/shape';
 import type { Homography, ResolvedShape, TiltParams } from '@ax-design/shape';
 import { StyleBinding, StyleSchema } from '@ax-design/typed-om';
+import type { LengthPercentage, PropertyValue } from '@ax-design/typed-om';
+import type { TriggerTarget } from './triggers.js';
 import type { PointerListener, PointerState } from './global.js';
 import { services } from './global.js';
 import { createLayer } from './layer.js';
@@ -43,10 +45,19 @@ function schemaFor(names: string[], layers: SurfaceLayer[]): StyleSchema {
     return schemas[key];
 }
 
-export class AxSurface extends HTMLElement implements FrameClient, PointerListener {
+function sameValue(a: PropertyValue, b: PropertyValue): boolean {
+    if (a === b) return true;
+    if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
+    if (Array.isArray(a) && Array.isArray(b)) return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
+    const x = a as LengthPercentage;
+    const y = b as LengthPercentage;
+    return x.px === y.px && x.percent === y.percent;
+}
+
+export class AxSurface extends HTMLElement implements FrameClient, PointerListener, TriggerTarget {
     static readonly ElementName = 'ax-surface';
     static get observedAttributes() {
-        return ['layers'];
+        return ['layers', 'observe'];
     }
 
     private root: ShadowRoot;
@@ -82,6 +93,9 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
     private released = false;
 
     private tiltChanged = false;
+    private previous: PropertyValue[] = [];
+    private uniformBorder: number | null = null;
+    private hostAnimating = false;
     private rect: DOMRect | null = null;
     private local: LocalPointer | null = null;
     private animating = false;
@@ -117,12 +131,55 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
         s.pointerListeners.delete(this);
         s.scheduler.cancel(this);
         this.removeEventListener('pointerdown', this.onPointerDown);
-        if (this.binding) this.binding.unobserve();
+        this.stopObserving();
         this.visible = false;
     }
 
-    attributeChangedCallback() {
-        if (this.connected) this.buildLayers();
+    attributeChangedCallback(name: string) {
+        if (!this.connected) return;
+        if (name === 'layers') this.buildLayers();
+        else if (this.visible) {
+            this.stopObserving();
+            this.startObserving();
+        }
+    }
+
+    // observe="precise": a detector per surface catches every change (selectors such as :has(),
+    // third-party shadow roots) at about 95 us per page-wide change. Default: shared triggers.
+    private get precise(): boolean {
+        return this.getAttribute('observe') === 'precise';
+    }
+
+    private startObserving() {
+        if (this.precise) {
+            if (this.binding) this.binding.observe(this.onStyleChange);
+        } else {
+            services().triggers.add(this, this);
+        }
+    }
+
+    private stopObserving() {
+        if (this.binding) this.binding.unobserve();
+        services().triggers.delete(this);
+    }
+
+    // Cheap filter before getAnimations, which costs several microseconds per call: a surface
+    // can only animate if its computed style declares a transition or an animation.
+    private mayAnimate(): boolean {
+        const style = getComputedStyle(this);
+        if (style.animationName && style.animationName !== 'none') return true;
+        const durations = style.transitionDuration;
+        return !!durations && /[1-9]/.test(durations);
+    }
+
+    // TriggerTarget, and public: re-read styles on the next frame.
+    invalidateStyle() {
+        this.styleDirty = true;
+        this.requestFrame();
+    }
+
+    refresh() {
+        this.invalidateStyle();
     }
 
     private buildLayers() {
@@ -146,11 +203,12 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
         }
         if (this.visible) this.attachLayers();
         const schema = schemaFor(this.activeNames, this.layers);
-        if (this.binding) this.binding.unobserve();
+        this.stopObserving();
         this.binding = new StyleBinding(schema, this, this.root);
         this.values = new Values(schema.specs);
+        this.previous = [];
         this.styleDirty = true;
-        if (this.visible) this.binding.observe(this.onStyleChange);
+        if (this.visible) this.startObserving();
         this.requestFrame();
     }
 
@@ -175,11 +233,11 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
             // Entering the viewport: one forced read, then observe changes.
             this.attachLayers();
             this.styleDirty = true;
-            if (this.binding) this.binding.observe(this.onStyleChange);
+            this.startObserving();
             if (this.layers.some((l) => l.tracksPointer)) s.pointerListeners.add(this);
             this.requestFrame();
         } else {
-            if (this.binding) this.binding.unobserve();
+            this.stopObserving();
             s.pointerListeners.delete(this);
         }
     }
@@ -227,7 +285,13 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
     // Phase 1: style and layout reads only.
     read() {
         if (this.styleDirty && this.binding && this.values) {
-            this.values.values = this.binding.read();
+            const next = this.binding.read();
+            // Triggers are coarse: most re-reads find nothing new and stop here.
+            let same = this.previous.length === next.length;
+            for (let i = 0; same && i < next.length; i++) same = sameValue(this.previous[i], next[i]);
+            if (same) this.styleDirty = false;
+            this.previous = next.slice();
+            this.values.values = next;
         }
         const pointer = services().pointer;
         const wantsPointer = this.pointerDirty || this.tiltDirty || this.animating;
@@ -277,7 +341,11 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
         }
         if (tiltChanged || geometryDirty) {
             this.homography = this.tiltNow ? tiltHomography(this.tiltNow) : null;
-            if (this.shape) {
+            const w = this.borderWidths;
+            this.uniformBorder = !this.homography && w[0] === w[1] && w[1] === w[2] && w[2] === w[3] ? w[0] : null;
+            if (this.uniformBorder !== null) {
+                this.inner = [];
+            } else if (this.shape) {
                 this.inner = borderInner(this.shape.outline, {
                     widths: this.borderWidths,
                     transform: this.homography || undefined,
@@ -324,6 +392,7 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
             paint: this.paint,
             shape: this.shape,
             borderWidths: this.borderWidths,
+            uniformBorder: this.uniformBorder,
             borderInner: this.inner,
             tilt: this.homography,
             pointer: this.local,
@@ -333,9 +402,18 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
             now,
         };
         let again = !!this.tiltTo;
-        for (const layer of this.layers) if (layer.write(frame)) again = true;
+        if (this.layersAttached) for (const layer of this.layers) if (layer.write(frame)) again = true;
+        // An author transition on this surface or an ancestor: keep reading every frame.
+        // getAnimations covers engines that fire no events for custom property transitions; it
+        // is costly, so it runs only right after a change and while an animation was running.
+        if (!this.precise && (changed.style || this.hostAnimating) && typeof this.getAnimations === 'function') {
+            this.hostAnimating = this.mayAnimate() && this.getAnimations().length > 0;
+        }
+        const readNext = !this.precise && (this.hostAnimating || services().triggers.isAnimating(this));
+        if (readNext) again = true;
         this.animating = again;
-        this.styleDirty = this.sizeDirty = this.pointerDirty = this.tiltDirty = false;
+        this.styleDirty = readNext;
+        this.sizeDirty = this.pointerDirty = this.tiltDirty = false;
         this.tiltChanged = false;
         if (again) this.requestFrame();
     }

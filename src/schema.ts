@@ -25,6 +25,8 @@ const kw = (name: string, values: string[], initial: string, inherits = false): 
     register: true,
 });
 
+const TILT_OFF = { property: '--ax-tilt-mode', values: ['off'] };
+
 export const CORE_SCHEMA: PropertySpec[] = [
     lp('--ax-radius', '0px'),
     ...CORNERS.map((c) => lp(`--ax-${c}-radius`, '-1px')),
@@ -33,25 +35,29 @@ export const CORE_SCHEMA: PropertySpec[] = [
     ...CORNERS.map((c) => lp(`--ax-corner-${c}-shift-x`, '0px')),
     ...CORNERS.map((c) => lp(`--ax-corner-${c}-shift-y`, '0px')),
     ...flatten(
-        SIDES.map((s) => [
-            kw(`--ax-edge-${s}-kind`, EDGE_KINDS, 'flat'),
-            len(`--ax-edge-${s}-depth`, '0px'),
-            lp(`--ax-edge-${s}-span`, '33%'),
-            lp(`--ax-edge-${s}-at`, '50%'),
-            num(`--ax-edge-${s}-ratio`, '0.5'),
-            len(`--ax-edge-${s}-tip-radius`, '0px'),
-            len(`--ax-edge-${s}-shoulder-radius`, '0px'),
-        ])
+        SIDES.map((s) => {
+            // A flat edge ignores its feature parameters; skip reading them.
+            const flat = { property: `--ax-edge-${s}-kind`, values: ['flat'] };
+            return [
+                kw(`--ax-edge-${s}-kind`, EDGE_KINDS, 'flat'),
+                { ...len(`--ax-edge-${s}-depth`, '0px'), skipWhen: flat },
+                { ...lp(`--ax-edge-${s}-span`, '33%'), skipWhen: flat },
+                { ...lp(`--ax-edge-${s}-at`, '50%'), skipWhen: flat },
+                { ...num(`--ax-edge-${s}-ratio`, '0.5'), skipWhen: flat },
+                { ...len(`--ax-edge-${s}-tip-radius`, '0px'), skipWhen: flat },
+                { ...len(`--ax-edge-${s}-shoulder-radius`, '0px'), skipWhen: flat },
+            ];
+        })
     ),
     len('--ax-border-width', '1px'),
     ...SIDES.map((s) => len(`--ax-border-${s}-width`, '-1px')),
     // Tilt: appearance, inherited like the legacy --pressure-* properties.
     kw('--ax-tilt-mode', ['off', 'absolute', 'relative'], 'off', true),
-    len('--ax-tilt-depth', '1px', true),
-    num('--ax-tilt-factor', '2', true),
-    len('--ax-tilt-perspective', '25px', true),
-    len('--ax-tilt-zoom', '0.8px', true),
-    kw('--ax-tilt-direction', ['normal', 'inverted'], 'normal', true),
+    { ...len('--ax-tilt-depth', '1px', true), skipWhen: TILT_OFF },
+    { ...num('--ax-tilt-factor', '2', true), skipWhen: TILT_OFF },
+    { ...len('--ax-tilt-perspective', '25px', true), skipWhen: TILT_OFF },
+    { ...len('--ax-tilt-zoom', '0.8px', true), skipWhen: TILT_OFF },
+    { ...kw('--ax-tilt-direction', ['normal', 'inverted'], 'normal', true), skipWhen: TILT_OFF },
 ];
 
 // Reads values out of a binding by property name.

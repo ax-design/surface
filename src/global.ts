@@ -1,4 +1,5 @@
 import { Scheduler } from './scheduler.js';
+import { StyleTriggers } from './triggers.js';
 
 // Page-wide services. Several copies or versions of this package can be loaded into one page
 // (bundled twice, micro frontends), so the services live under a versioned global symbol and
@@ -20,6 +21,7 @@ export interface PointerListener {
 export interface Services {
     version: 1;
     scheduler: Scheduler;
+    triggers: StyleTriggers;
     pointer: PointerState;
     pointerListeners: Set<PointerListener>;
     observeVisibility(element: Element, callback: (visible: boolean) => void): void;
@@ -103,6 +105,7 @@ function createServices(): Services {
     return {
         version: 1,
         scheduler: new Scheduler(),
+        triggers: new StyleTriggers(),
         pointer,
         pointerListeners,
         observeVisibility(element, callback) {
