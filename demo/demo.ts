@@ -61,40 +61,6 @@ const PRESETS: Preset[] = [
     },
     { name: 'Clamshell', props: { '--ax-radius': '30%', '--ax-corner-shape': 'bevel' } },
     {
-        name: 'Pentagon',
-        props: {
-            '--ax-radius': '10%',
-            '--ax-corner-top-left-shift-y': '36%',
-            '--ax-corner-top-right-shift-y': '36%',
-            '--ax-corner-bottom-left-shift-x': '18%',
-            '--ax-corner-bottom-right-shift-x': '18%',
-            '--ax-edge-top-kind': 'triangle',
-            '--ax-edge-top-depth': '35px',
-            '--ax-edge-top-span': '100%',
-            '--ax-edge-top-tip-radius': '10px',
-        },
-    },
-    {
-        name: 'Gem',
-        props: {
-            '--ax-radius': '10%',
-            '--ax-corner-top-left-shift-x': '24%',
-            '--ax-corner-top-right-shift-x': '24%',
-            '--ax-corner-bottom-left-shift-x': '50%',
-            '--ax-corner-bottom-right-shift-x': '50%',
-            '--ax-edge-left-kind': 'triangle',
-            '--ax-edge-left-at': '72%',
-            '--ax-edge-left-depth': '16px',
-            '--ax-edge-left-span': '50%',
-            '--ax-edge-left-tip-radius': '6px',
-            '--ax-edge-right-kind': 'triangle',
-            '--ax-edge-right-at': '28%',
-            '--ax-edge-right-depth': '16px',
-            '--ax-edge-right-span': '50%',
-            '--ax-edge-right-tip-radius': '6px',
-        },
-    },
-    {
         name: '4-sided cookie',
         props: Object.assign(
             { '--ax-radius': '34%' },
@@ -133,10 +99,10 @@ const PRESETS: Preset[] = [
     },
     { name: 'Pixel circle', props: { '--ax-radius': '18%', '--ax-corner-shape': 'notch' } },
     {
-        name: 'Bun',
+        name: 'Ticket',
         size: [100, 76],
         props: {
-            '--ax-radius': '40%',
+            '--ax-radius': '12px',
             '--ax-edge-left-kind': 'arc',
             '--ax-edge-left-depth': '-9px',
             '--ax-edge-left-span': '42%',
@@ -146,26 +112,33 @@ const PRESETS: Preset[] = [
         },
     },
     {
-        name: 'Heart',
-        size: [100, 92],
-        // Vertical sides with the bottom corners moved up; the point is an outward triangle.
-        props: {
-            '--ax-top-left-radius': '26px',
-            '--ax-top-right-radius': '26px',
-            '--ax-bottom-right-radius': '14px',
-            '--ax-bottom-left-radius': '14px',
-            '--ax-corner-bottom-left-shift-y': '44%',
-            '--ax-corner-bottom-right-shift-y': '44%',
-            '--ax-edge-top-kind': 'triangle',
-            '--ax-edge-top-depth': '-16px',
-            '--ax-edge-top-span': '22px',
-            '--ax-edge-top-tip-radius': '3px',
-            '--ax-edge-top-shoulder-radius': '8px',
-            '--ax-edge-bottom-kind': 'triangle',
-            '--ax-edge-bottom-depth': '40px',
-            '--ax-edge-bottom-span': '72%',
-            '--ax-edge-bottom-tip-radius': '7px',
-        },
+        // Two rounded rectangles on top of each other.
+        name: 'Bun',
+        props: Object.assign(
+            { '--ax-radius': '28%' },
+            ...['left', 'right'].map((s) => ({
+                [`--ax-edge-${s}-kind`]: 'triangle',
+                [`--ax-edge-${s}-depth`]: '-12px',
+                [`--ax-edge-${s}-span`]: '44px',
+                [`--ax-edge-${s}-tip-radius`]: '4px',
+                [`--ax-edge-${s}-shoulder-radius`]: '10px',
+            }))
+        ),
+    },
+    {
+        // A square with a triangle out of every side; the triangles go out of the box.
+        name: 'Sun',
+        size: [64, 64],
+        props: Object.assign(
+            { '--ax-radius': '4px' },
+            ...['top', 'right', 'bottom', 'left'].map((s) => ({
+                [`--ax-edge-${s}-kind`]: 'triangle',
+                [`--ax-edge-${s}-depth`]: '24px',
+                [`--ax-edge-${s}-span`]: '60%',
+                [`--ax-edge-${s}-tip-radius`]: '5px',
+                [`--ax-edge-${s}-shoulder-radius`]: '4px',
+            }))
+        ),
     },
 ];
 
@@ -292,7 +265,7 @@ const INITIAL: Record<string, string> = {
     '--acrylic-tint-opacity': '0.18',
     '--acrylic-blur': '24px',
     '--reveal-color': 'rgb(255, 255, 255)',
-    '--reveal-opacity': '0.45',
+    '--reveal-opacity': '0.3',
 };
 
 const subject = document.getElementById('subject') as HTMLElement;
