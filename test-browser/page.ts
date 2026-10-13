@@ -1,7 +1,7 @@
 // Browser checks for <ax-surface>. Some steps need real input; the driver performs them when
 // window.__step asks for it and answers through window.__ack.
 import { apply, resolve, toSvgPath } from '@ax-design/shape';
-import { register, services, shapeSpecFrom, borderWidthsFrom } from '../src/index.js';
+import { register, registerLayer, services, shapeSpecFrom, borderWidthsFrom } from '../src/index.js';
 import type { AxSurface } from '../src/index.js';
 
 interface Check {
@@ -47,6 +47,8 @@ window.requestAnimationFrame = (cb: FrameRequestCallback) => {
 };
 
 async function run() {
+    // A layer that only follows the pointer, like reveal does.
+    registerLayer('pointer-probe', () => ({ tracksPointer: true, attach() {}, detach() {}, write: () => false }));
     register();
     await frames(4);
     const a = byId('a');
@@ -106,6 +108,31 @@ async function run() {
     await frames(8);
     check('released surface returns flat', tiltBox.style.transform === '', tiltBox.style.transform);
 
+    // 5a. Nested surfaces: with the outer one tilted, the inner one maps the pointer through
+    // the outer tilt (its bounding rect is the box around a projected quad by then).
+    await ask('press-outer');
+    await ask('move-inner');
+    {
+        const outer = byId('outer');
+        const inner = byId('inner');
+        const os = outer.debugState;
+        const is = inner.debugState;
+        const pointer = services().pointer;
+        const or = outer.getBoundingClientRect();
+        if (os.tilt && is.local) {
+            const { tiltHomography } = await import('@ax-design/shape');
+            // Inner local -> outer plane (offset of the inner box inside the outer one at rest).
+            const offset = (inner as any).offsetInParent as { x: number; y: number };
+            const screen = apply(tiltHomography(os.tilt), { x: is.local.x + offset.x, y: is.local.y + offset.y });
+            const err = Math.hypot(screen.x + or.left - pointer.x, screen.y + or.top - pointer.y);
+            check('nested surface maps the pointer through the outer tilt', err < 0.5, `err=${err.toFixed(3)}`);
+        } else {
+            check('nested surface maps the pointer through the outer tilt', false, `tilt=${!!os.tilt} local=${!!is.local}`);
+        }
+    }
+    await ask('release');
+    await frames(8);
+
     // 5b. Precise mode attaches a detector; default mode does not.
     check('precise surface has a detector', hasDetector(byId('p')) && !hasDetector(a));
     const pBefore = fillPath(byId('p'));
@@ -149,6 +176,8 @@ async function run() {
     await ask('leave');
 
     // 6. Idle: no animation frames at all.
+    // Let the visibility round that follows the last pointer activity (300 ms) settle first.
+    await new Promise((r) => setTimeout(r, 600));
     await frames(5);
     rafCalls = 0;
     await new Promise((r) => setTimeout(r, 400));

@@ -12,6 +12,7 @@ import { PRIORITY_IDLE, PRIORITY_POINTER, PRIORITY_PRESSED } from './scheduler.j
 import type { FrameClient, Quality } from './scheduler.js';
 import { CORE_SCHEMA, Values, borderWidthsFrom, shapeSpecFrom } from './schema.js';
 import { isResting, lerpTilt, restingTilt, tiltFor, tiltTransform } from './tilt.js';
+import type { Point, TiltParams as Tilt } from '@ax-design/shape';
 
 const TILT_DURATION = 50;
 // Extra paint area around the layout box. Zero: a canvas that sticks out of its element overlaps
@@ -119,6 +120,35 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     private reads = 0;
     private geometryPending = false;
     private paintKey = '';
+    // Nearest surface around this one. While it (or one of its ancestors) is tilted, this
+    // surface's bounding rect is the box around a projected quad and useless for mapping the
+    // pointer; the pointer goes through the ancestor's inverse tilt and this offset instead,
+    // measured while no ancestor was tilted.
+    private parentSurface: AxSurface | null = null;
+    private offsetInParent: Point | null = null;
+
+    private ancestorTilted(): boolean {
+        for (let p = this.parentSurface; p; p = p.parentSurface) if (p.homography) return true;
+        return false;
+    }
+
+    // A screen point in this surface's own plane, before its own tilt.
+    private toUntiltedLocal(x: number, y: number): Point | null {
+        if (this.parentSurface && this.ancestorTilted()) {
+            const o = this.offsetInParent;
+            const p = o ? this.parentSurface.toLocal(x, y) : null;
+            return p && o ? { x: p.x - o.x, y: p.y - o.y } : null;
+        }
+        const r = this.rect || this.lastRect;
+        return r ? { x: x - r.left, y: y - r.top } : null;
+    }
+
+    // A screen point in this surface's local coordinates, through every tilt above and its own.
+    toLocal(x: number, y: number): Point | null {
+        const p = this.toUntiltedLocal(x, y);
+        if (!p) return null;
+        return this.homography ? apply(invert(this.homography), p) : p;
+    }
     // Geometry computed this frame: layers must treat it as a style and size change.
     private geometryFresh = false;
 
@@ -180,6 +210,15 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         return borderWidthsFrom(values);
     }
 
+    // The tilt toward a press at local (x, y); null for no tilt. Default: --ax-tilt-*.
+    protected tiltParams(values: Values, width: number, height: number, x: number, y: number): Tilt | null {
+        return tiltFor(values, width, height, x, y);
+    }
+
+    protected tiltPerspective(values: Values): number {
+        return values.length('--ax-tilt-perspective');
+    }
+
     // False hides the pointer from the layers (outside a reveal boundary).
     protected pointerAllowed(): boolean {
         return true;
@@ -199,6 +238,14 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
 
     connectedCallback() {
         this.connected = true;
+        this.parentSurface = null;
+        for (let n: Node | null = this.parentNode || null; n; n = n.parentNode || (n as ShadowRoot).host || null) {
+            if (n instanceof AxSurface) {
+                this.parentSurface = n;
+                break;
+            }
+        }
+        this.offsetInParent = null;
         this.buildLayers();
         const s = services();
         s.observeSize(this, (w, h) => {
@@ -403,9 +450,20 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         }
         const pointer = services().pointer;
         const wantsPointer = this.pointerDirty || this.tiltDirty || this.animating;
-        this.rect = wantsPointer && (pointer.present || this.pressPoint) ? this.getBoundingClientRect() : null;
-        if (this.rect) this.lastRect = this.rect;
+        const tiltedAbove = this.ancestorTilted();
+        this.rect = wantsPointer && (pointer.present || this.pressPoint) && !tiltedAbove ? this.getBoundingClientRect() : null;
+        if (this.rect) {
+            this.lastRect = this.rect;
+            if (this.parentSurface) {
+                const pr = this.parentSurface.getBoundingClientRect();
+                this.offsetInParent = { x: this.rect.left - pr.left, y: this.rect.top - pr.top };
+            }
+        }
+        this.mappable = !!this.rect || (tiltedAbove && !!this.offsetInParent);
     }
+
+    // The pointer can be mapped into this surface this frame.
+    private mappable = false;
 
     // Phase 2: geometry, no DOM access.
     compute(now: number) {
@@ -428,12 +486,10 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         }
 
         // Tilt target on press and release, then a short tween.
-        if (this.tiltDirty && this.rect) {
-            const rest = restingTilt(this.width, this.height, v.length('--ax-tilt-perspective'));
-            const target =
-                this.pressPoint && !this.released
-                    ? tiltFor(v, this.width, this.height, this.pressPoint.x - this.rect.left, this.pressPoint.y - this.rect.top)
-                    : rest;
+        if (this.tiltDirty && this.mappable) {
+            const rest = restingTilt(this.width, this.height, this.tiltPerspective(v));
+            const press = this.pressPoint && !this.released ? this.toUntiltedLocal(this.pressPoint.x, this.pressPoint.y) : null;
+            const target = press ? this.tiltParams(v, this.width, this.height, press.x, press.y) : rest;
             if (target) {
                 this.tiltFrom = this.tiltNow || rest;
                 this.tiltTo = target;
@@ -471,11 +527,10 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
 
         // Pointer in local coordinates, through the inverse tilt.
         const pointer = services().pointer;
-        if (this.rect && pointer.present && !this.pointerAllowed()) {
+        const p = this.mappable && pointer.present ? this.toLocal(pointer.x, pointer.y) : null;
+        if (p && !this.pointerAllowed()) {
             this.local = null;
-        } else if (this.rect && pointer.present) {
-            const screen = { x: pointer.x - this.rect.left, y: pointer.y - this.rect.top };
-            const p = this.homography ? apply(invert(this.homography), screen) : screen;
+        } else if (p) {
             this.local = {
                 x: p.x,
                 y: p.y,

@@ -67,6 +67,10 @@ A surface notices style changes caused by classes, attributes, `:hover`, `:activ
 
 or call `element.refresh()` (one surface) or `refreshAll()` (every surface) after the change.
 
+### Surfaces inside surfaces
+
+A surface inside a tilted surface (for example `ax-reveal` inside `ax-pressure`) follows the tilt: your pointer is mapped through every tilt above it, so its effects stay under your pointer.
+
 ## Style Controlling
 
 Surface component uses custom properties to manage its shape. In the names below, `{corner}` is one of `top-left`, `top-right`, `bottom-right`, `bottom-left`, and `{side}` is one of `top`, `right`, `bottom`, `left`.
@@ -256,6 +260,27 @@ registerLayer('outline', () => ({
     return false; // true asks for another frame
   },
 }));
+```
+
+## Writing an element
+
+Subclass `AxSurface` to make an element with its own property names. `layerNames_()` picks the layers, `shapeFor()` and `borderWidthsFor()` read the shape, and `tiltParams()` and `tiltPerspective()` read the tilt:
+
+```javascript
+import { AxSurface } from '@ax-design/surface';
+
+class MyCard extends AxSurface {
+  static schemaKey = 'my-card';
+  static extraSchema = [{ name: '--my-card-lean', syntax: { type: 'number' }, initial: '3', inherits: true }];
+
+  layerNames_() { return ['fill']; }
+
+  tiltParams(values, width, height, x, y) {
+    const lean = values.number('--my-card-lean');
+    return { width, height, perspective: 400, rotateX: (0.5 - y / height) * lean, rotateY: (x / width - 0.5) * lean, translateZ: 0 };
+  }
+}
+customElements.define('my-card', MyCard);
 ```
 
 ## Browser support
