@@ -2,12 +2,12 @@
 // @ax-design/surface always resolves to this checkout's src, also inside the reveal and acrylic
 // packages, so the page runs one copy: the code you are editing. The other packages come from
 // sibling checkouts when they exist, else from node_modules.
-import { existsSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const root = resolve(import.meta.dir, '../..');
 const sources: Record<string, string> = { '@ax-design/surface': resolve(import.meta.dir, '../src/index.ts') };
-for (const name of ['shape', 'typed-om', 'reveal-highlight', 'acrylic']) {
+for (const name of ['shape', 'typed-om', 'reveal-highlight', 'acrylic', 'elevation']) {
     const path = join(root, name, 'src/index.ts');
     if (existsSync(path)) sources[`@ax-design/${name}`] = path;
 }
@@ -21,12 +21,14 @@ export async function build(name = 'index'): Promise<void> {
             {
                 name: 'ax-sources',
                 setup(b) {
-                    b.onResolve({ filter: /^@ax-design\/(surface|shape|typed-om|reveal-highlight|acrylic)$/ }, (args) => (sources[args.path] ? { path: sources[args.path] } : undefined));
+                    b.onResolve({ filter: /^@ax-design\/(surface|shape|typed-om|reveal-highlight|acrylic|elevation)$/ }, (args) => (sources[args.path] ? { path: sources[args.path] } : undefined));
                 },
             },
         ],
     });
     if (!result.success) throw new Error(result.logs.join('\n'));
+    // Images referenced from inline styles.
+    cpSync(join(import.meta.dir, 'images'), join(import.meta.dir, 'dist/images'), { recursive: true });
 }
 
 if (import.meta.main) await build(process.argv[2]);

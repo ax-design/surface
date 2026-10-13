@@ -1,9 +1,11 @@
 import { registerAcrylicLayer } from '@ax-design/acrylic';
+import { registerElevationLayer } from '@ax-design/elevation';
 import { registerRevealLayer } from '@ax-design/reveal-highlight';
 import { register } from '../src/index.js';
 
 registerRevealLayer();
 registerAcrylicLayer();
+registerElevationLayer();
 register();
 
 // Shapes after the Material 3 shape set, for a 100px reference size. Values in px scale with
@@ -133,12 +135,12 @@ const PRESETS: Preset[] = [
         name: 'Sun',
         size: [64, 64],
         props: {
-            '--ax-radius': '4px',
+            '--ax-radius': '12px',
             '--ax-edge-kind': 'triangle',
-            '--ax-edge-depth': '24px',
-            '--ax-edge-span': '60%',
-            '--ax-edge-tip-radius': '5px',
-            '--ax-edge-shoulder-radius': '4px',
+            '--ax-edge-depth': '12px',
+            '--ax-edge-span': '44%',
+            '--ax-edge-tip-radius': '3px',
+            '--ax-edge-shoulder-radius': '3px',
         },
     },
 ];
@@ -239,14 +241,9 @@ const GROUPS: Group[] = [
     },
     { title: 'Fill', layer: 'fill', controls: [color('Color', '--ax-fill-color', 'rgba(0, 0, 0, 0)', true)] },
     {
-        title: 'Shadow',
-        layer: 'shadow',
-        controls: [
-            color('Color', '--ax-shadow-color', 'rgba(0, 0, 0, 0.3)', true),
-            range('Blur', '--ax-shadow-blur', 0, 80, 1, 'px', '12px'),
-            range('X', '--ax-shadow-x', -40, 40, 1, 'px', '0px'),
-            range('Y', '--ax-shadow-y', -40, 40, 1, 'px', '4px'),
-        ],
+        title: 'Elevation',
+        layer: 'elevation',
+        controls: [range('Depth', '--elevation-depth', 0, 64, 1, '', '0')],
     },
     {
         title: 'Acrylic',
@@ -264,7 +261,7 @@ const GROUPS: Group[] = [
     },
 ];
 
-const LAYERS = ['shadow', 'fill', 'acrylic', 'reveal'];
+const LAYERS = ['elevation', 'fill', 'acrylic', 'reveal'];
 
 const INITIAL: Record<string, string> = {
     '--ax-radius': '16%',
@@ -273,9 +270,7 @@ const INITIAL: Record<string, string> = {
     '--ax-tilt-depth': '3px',
     '--ax-tilt-perspective': '600px',
     '--ax-fill-color': 'rgba(255, 255, 255, 0.85)',
-    '--ax-shadow-color': 'rgba(10, 12, 30, 0.45)',
-    '--ax-shadow-blur': '30px',
-    '--ax-shadow-y': '12px',
+    '--elevation-depth': '32',
     '--acrylic-tint-color': 'rgb(255, 255, 255)',
     '--acrylic-tint-opacity': '0.18',
     '--acrylic-blur': '24px',
@@ -288,7 +283,7 @@ const output = document.getElementById('output') as HTMLElement;
 const form = document.getElementById('controls') as HTMLFormElement;
 
 const state = {
-    layers: ['shadow', 'acrylic', 'reveal'],
+    layers: ['elevation', 'acrylic', 'reveal'],
     size: [240, 150] as [number, number],
     props: { ...INITIAL } as Record<string, string>,
     picked: { corner: 0, side: 0 },
@@ -498,3 +493,14 @@ for (const p of PRESETS) {
 apply();
 render();
 (window as unknown as { __ready: boolean }).__ready = true;
+
+// ----- Player -----
+
+// The play button and the cradle around it change together while the button is pressed. The
+// class on their common parent reaches both surfaces; :active would only reach the button.
+const playerWrap = document.querySelector('.player-wrap') as HTMLElement;
+const playButton = playerWrap.querySelector('.play') as HTMLElement;
+const release = () => playerWrap.classList.remove('pressed');
+playButton.addEventListener('pointerdown', () => playerWrap.classList.add('pressed'));
+window.addEventListener('pointerup', release);
+window.addEventListener('pointercancel', release);

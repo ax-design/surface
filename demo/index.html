@@ -12,12 +12,8 @@
     --muted: #5d6475;
     --line: #dfe2ea;
     --accent: #3d5afe;
-    --wallpaper:
-      radial-gradient(circle at 18% 22%, #ff7a59 0, transparent 34%),
-      radial-gradient(circle at 78% 18%, #7c4dff 0, transparent 38%),
-      radial-gradient(circle at 70% 82%, #00bfa5 0, transparent 36%),
-      radial-gradient(circle at 24% 86%, #ffca28 0, transparent 30%),
-      #141927;
+    /* The background of the acrylic demo. */
+    --wallpaper: url('./images/background.jpg') center / cover #5f8a8b;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
@@ -34,9 +30,9 @@
   .morph {
     flex: none; width: 112px; height: 112px; margin: 28px;
     --ax-fill-color: var(--accent); --ax-border-width: 0px;
-    --ax-shadow-color: rgba(61, 90, 254, 0.35); --ax-shadow-blur: 24px; --ax-shadow-y: 10px;
-    /* The sun frame: a triangle out of every side. */
-    --ax-edge-kind: triangle; --ax-edge-span: 60%; --ax-edge-tip-radius: 5px; --ax-edge-shoulder-radius: 4px;
+    --elevation-depth: 24;
+    /* The sun frame: a small triangle out of every side. */
+    --ax-edge-kind: triangle; --ax-edge-span: 44%; --ax-edge-tip-radius: 5px; --ax-edge-shoulder-radius: 5px;
     animation: morph 8s cubic-bezier(0.6, 0, 0.3, 1) infinite, spin 16s linear infinite;
   }
   @keyframes morph {
@@ -46,8 +42,8 @@
       --ax-edge-depth: 0px; }
     50% { --ax-radius: 14%; --ax-corner-top-left-shift-y: 50%; --ax-corner-top-right-shift-x: 50%; --ax-corner-bottom-right-shift-y: 50%; --ax-corner-bottom-left-shift-x: 50%;
       --ax-edge-depth: 0px; }
-    75% { --ax-radius: 4.0px; --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 0%; --ax-corner-bottom-left-shift-x: 0%;
-      --ax-edge-depth: 26px; }
+    75% { --ax-radius: 19%; --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 0%; --ax-corner-bottom-left-shift-x: 0%;
+      --ax-edge-depth: 21px; }
   }
   @keyframes morph-small {
     0%, 100% { --ax-radius: 50%; --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 0%; --ax-corner-bottom-left-shift-x: 0%;
@@ -56,8 +52,8 @@
       --ax-edge-depth: 0px; }
     50% { --ax-radius: 14%; --ax-corner-top-left-shift-y: 50%; --ax-corner-top-right-shift-x: 50%; --ax-corner-bottom-right-shift-y: 50%; --ax-corner-bottom-left-shift-x: 50%;
       --ax-edge-depth: 0px; }
-    75% { --ax-radius: 2.4px; --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 0%; --ax-corner-bottom-left-shift-x: 0%;
-      --ax-edge-depth: 15px; }
+    75% { --ax-radius: 19%; --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 0%; --ax-corner-bottom-left-shift-x: 0%;
+      --ax-edge-depth: 12px; }
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -67,10 +63,6 @@
   .stage {
     position: relative; min-height: 460px; border-radius: 14px; background: var(--wallpaper);
     display: flex; align-items: center; justify-content: center; overflow: hidden;
-  }
-  .stage::before {
-    content: "Axiom"; position: absolute; left: 24px; bottom: 6px; font-size: 120px; font-weight: 800; letter-spacing: -0.04em;
-    color: rgba(255, 255, 255, 0.85);
   }
   #subject { width: 240px; height: 150px; color: #fff; }
   #subject .label { display: flex; height: 100%; align-items: center; justify-content: center; font-weight: 600; font-size: 16px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
@@ -120,38 +112,43 @@
 
   .weather { --ax-radius: 20px; --ax-corner-bottom-right-shape: scoop; --ax-bottom-right-radius: 26px; }
 
-  /* The play button sits on the bottom edge, in a half circle 8px wider than the button. */
+  /* The play button sits on the bottom edge, in a cradle 8px wider than the button. The cradle
+     is a rounded notch, so it can follow the button from a circle to a rounded square. */
   .player { display: block; width: 100%; height: calc(100% - 34px); --ax-radius: 22px;
-            --ax-edge-bottom-kind: arc; --ax-edge-bottom-depth: -42px; --ax-edge-bottom-span: 84px; --ax-edge-bottom-shoulder-radius: 10px; }
+            --ax-edge-bottom-kind: rect; --ax-edge-bottom-depth: -42px; --ax-edge-bottom-span: 84px;
+            --ax-edge-bottom-tip-radius: 37px; --ax-edge-bottom-shoulder-radius: 5px;
+            transition: --ax-edge-bottom-tip-radius 0.25s, --ax-edge-bottom-shoulder-radius 0.25s; }
+  /* Set by demo.ts while the play button is pressed: 30% of 68px plus the 8px gap. */
+  .player-wrap.pressed .player { --ax-edge-bottom-tip-radius: 28.4px; --ax-edge-bottom-shoulder-radius: 8px; }
   .player-wrap { position: relative; }
   .player-wrap .tile-text { padding: 16px 18px; }
   .player .cover { width: 72px; height: 72px; border-radius: 12px; background: linear-gradient(135deg, #ffca28, #ff7a59 60%, #7c4dff); margin-bottom: 12px; }
   .play {
     position: absolute; left: 50%; bottom: 0; margin-left: -34px; width: 68px; height: 68px;
-    --ax-radius: 50%; --ax-fill-color: #fff; --ax-border-width: 0px; --ax-shadow-color: rgba(0, 0, 0, 0.35); --ax-shadow-blur: 18px; --ax-shadow-y: 6px;
+    --ax-radius: 50%; --ax-fill-color: #fff; --ax-border-width: 0px; --elevation-depth: 16;
     --reveal-color: rgb(61, 90, 254); --reveal-opacity: 0.35;
     --ax-tilt-mode: absolute; --ax-tilt-depth: 3px; --ax-tilt-perspective: 300px;
     transition: --ax-radius 0.25s;
   }
-  .play:active { --ax-radius: 30%; }
+  .player-wrap.pressed .play { --ax-radius: 30%; }
   .play svg { display: block; margin: 22px auto 0 26px; }
 
   .bubble {
     align-self: start; height: 92px; color: #161a23;
     --ax-radius: 20px; --ax-fill-color: #ffffff; --ax-border-width: 0px;
-    --ax-shadow-color: rgba(0, 0, 0, 0.4); --ax-shadow-blur: 16px; --ax-shadow-y: 6px;
+    --elevation-depth: 16;
     --ax-edge-bottom-kind: triangle; --ax-edge-bottom-at: 82%; --ax-edge-bottom-depth: 14px; --ax-edge-bottom-span: 26px;
     --ax-edge-bottom-tip-radius: 3px; --ax-edge-bottom-shoulder-radius: 6px;
+    --ax-tilt-mode: absolute; --ax-tilt-depth: 3px; --ax-tilt-perspective: 600px;
     transition: --ax-edge-bottom-depth 0.3s, --ax-edge-bottom-at 0.3s;
   }
   /* Sides run clockwise, so on the bottom edge `at` counts from the right. */
   .bubble:hover { --ax-edge-bottom-depth: 24px; --ax-edge-bottom-at: 74%; }
   .bubble .tile-text { padding: 14px 18px; }
-  .bubble .tile-text .small { opacity: 0.6; }
 
   .ticket {
     color: #161a23; --ax-radius: 12px; --ax-fill-color: #fffaf0; --ax-border-width: 0px;
-    --ax-shadow-color: rgba(0, 0, 0, 0.35); --ax-shadow-blur: 14px; --ax-shadow-y: 5px;
+    --elevation-depth: 12;
     --ax-edge-left-kind: arc; --ax-edge-left-depth: -11px; --ax-edge-left-span: 22px; --ax-edge-left-shoulder-radius: 2px;
     --ax-edge-right-kind: arc; --ax-edge-right-depth: -11px; --ax-edge-right-span: 22px; --ax-edge-right-shoulder-radius: 2px;
     --ax-tilt-mode: absolute; --ax-tilt-depth: 3px; --ax-tilt-perspective: 600px;
@@ -166,15 +163,15 @@
 
   .note { color: #3b3216; --ax-radius: 6px; --ax-fill-color: #ffe082; --ax-border-width: 0px;
           --ax-corner-top-right-shape: bevel; --ax-top-right-radius: 28px;
-          --ax-shadow-color: rgba(0, 0, 0, 0.3); --ax-shadow-blur: 10px; --ax-shadow-y: 4px;
+          --elevation-depth: 8;
           --ax-tilt-mode: absolute; --ax-tilt-depth: 2px; --ax-tilt-perspective: 500px; }
   .note .tile-text { font-family: "Segoe Print", "Bradley Hand", cursive; font-size: 15px; }
 
   .press { --ax-radius: 50%; --ax-fill-color: #3d5afe; --ax-border-width: 0px; --reveal-color: rgb(255, 255, 255); --reveal-opacity: 0.45;
-           --ax-shadow-color: rgba(20, 30, 120, 0.5); --ax-shadow-blur: 18px; --ax-shadow-y: 8px;
+           --elevation-depth: 20;
            --ax-tilt-mode: absolute; --ax-tilt-depth: 3px; --ax-tilt-perspective: 400px;
-           transition: --ax-radius 0.35s cubic-bezier(0.3, 1.6, 0.5, 1), --ax-shadow-y 0.2s, --ax-shadow-blur 0.2s; }
-  .press:active { --ax-radius: 22%; --ax-shadow-y: 3px; --ax-shadow-blur: 8px; }
+           transition: --ax-radius 0.35s cubic-bezier(0.3, 1.6, 0.5, 1), --elevation-depth 0.2s; }
+  .press:active { --ax-radius: 22%; --elevation-depth: 6; }
   .press .tile-text { align-items: center; justify-content: center; font-weight: 600; }
 
   .tag { --ax-radius: 10px; --ax-edge-left-kind: triangle; --ax-edge-left-span: 100%; --ax-edge-left-depth: 22px; --ax-edge-left-tip-radius: 6px;
@@ -183,16 +180,16 @@
   .tag .tile-text::before { content: ""; position: absolute; left: -6px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: rgba(20, 25, 39, 0.85); }
 
   .sun { width: 64px; height: 64px; margin: 30px; color: #3b2a00;
-         --ax-radius: 4px; --ax-fill-color: #ffca28; --ax-border-width: 0px; --reveal-color: rgb(255, 255, 255); --reveal-opacity: 0.5;
-         --ax-shadow-color: rgba(120, 70, 0, 0.45); --ax-shadow-blur: 14px; --ax-shadow-y: 5px;
+         --ax-radius: 12px; --ax-fill-color: #ffca28; --ax-border-width: 0px; --reveal-color: rgb(255, 255, 255); --reveal-opacity: 0.5;
+         --elevation-depth: 12;
          --ax-tilt-mode: absolute; --ax-tilt-depth: 3px; --ax-tilt-perspective: 300px;
-         --ax-edge-kind: triangle; --ax-edge-depth: 22px; --ax-edge-span: 60%; --ax-edge-tip-radius: 5px; --ax-edge-shoulder-radius: 4px;
+         --ax-edge-kind: triangle; --ax-edge-depth: 12px; --ax-edge-span: 44%; --ax-edge-tip-radius: 3px; --ax-edge-shoulder-radius: 3px;
          transition: --ax-edge-depth 0.3s; }
-  .sun:hover { --ax-edge-depth: 28px; }
+  .sun:hover { --ax-edge-depth: 16px; }
   .sun .tile-text { padding: 0; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
 
   .loader { width: 64px; height: 64px; margin: 30px; --ax-fill-color: #ffffff; --ax-border-width: 0px;
-            --ax-edge-kind: triangle; --ax-edge-span: 60%; --ax-edge-tip-radius: 3px; --ax-edge-shoulder-radius: 2px;
+            --ax-edge-kind: triangle; --ax-edge-span: 44%; --ax-edge-tip-radius: 3px; --ax-edge-shoulder-radius: 3px;
             animation: morph-small 2.4s cubic-bezier(0.6, 0, 0.3, 1) infinite, spin 2.4s linear infinite; }
   .loader-tile { display: flex; flex-direction: column; align-items: center; color: #fff; font-size: 12px; opacity: 0.85; }
 
@@ -213,7 +210,7 @@
       <h1>Surface</h1>
       <p>One element for shape, border, tilt and every effect of Axiom Design System. Everything on this page is CSS custom properties, including the shape on the right, a CSS animation of the shape properties.</p>
     </div>
-    <ax-surface class="morph" layers="shadow fill"></ax-surface>
+    <ax-surface class="morph" layers="elevation fill"></ax-surface>
   </header>
 
   <h2>Playground</h2>
@@ -241,15 +238,15 @@
         <div class="tile-text"><span class="small">Hangzhou, light rain</span><span class="big">23°</span></div>
       </ax-surface>
 
-      <ax-surface class="bubble wide" layers="shadow fill">
-        <div class="tile-text"><strong>Mira</strong><span>The bubble tail is an edge feature, and its shadow follows it.</span><span class="small">Hover me</span></div>
+      <ax-surface class="bubble wide" layers="elevation fill">
+        <div class="tile-text"><strong>Mira</strong><span>The bubble tail is an edge feature, and its shadow follows it.</span></div>
       </ax-surface>
 
       <div class="player-wrap wide tall">
         <ax-surface class="glass player" layers="acrylic reveal">
           <div class="tile-text"><div class="cover"></div><strong>Nightfall</strong><span class="small">Lumen Drift</span></div>
         </ax-surface>
-        <ax-surface class="play" layers="shadow fill reveal">
+        <ax-surface class="play" layers="elevation fill reveal">
           <svg width="20" height="24" viewBox="0 0 20 24" aria-label="Play"><path d="M2 2l16 10L2 22z" fill="#3d5afe" stroke="#3d5afe" stroke-width="3" stroke-linejoin="round"/></svg>
         </ax-surface>
       </div>
@@ -258,16 +255,16 @@
         <div class="tile-text"><span class="small">Folder</span><span class="big" style="font-size: 22px">Drafts</span></div>
       </ax-surface>
 
-      <ax-surface class="note" layers="shadow fill">
+      <ax-surface class="note" layers="elevation fill">
         <div class="tile-text">Buy milk.<br>Fold the corner.</div>
       </ax-surface>
 
-      <ax-surface class="ticket wide" layers="shadow fill">
+      <ax-surface class="ticket wide" layers="elevation fill">
         <div class="tile-text"><span class="city">HGH</span><span class="sep"></span><span class="city">KIX</span></div>
         <div class="meta">MU 729 · Gate 12 · 08:40</div>
       </ax-surface>
 
-      <ax-surface class="press" layers="shadow fill reveal">
+      <ax-surface class="press" layers="elevation fill reveal">
         <div class="tile-text">Press me</div>
       </ax-surface>
 
@@ -275,7 +272,7 @@
         <div class="tile-text"><span class="small">Sale</span><span class="big" style="font-size: 24px">-30%</span></div>
       </ax-surface>
 
-      <ax-surface class="sun" layers="shadow fill reveal"><div class="tile-text">NEW</div></ax-surface>
+      <ax-surface class="sun" layers="elevation fill reveal"><div class="tile-text">NEW</div></ax-surface>
 
       <div class="loader-tile"><ax-surface class="loader" layers="fill"></ax-surface>Loading</div>
     </div>
