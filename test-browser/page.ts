@@ -49,6 +49,16 @@ window.requestAnimationFrame = (cb: FrameRequestCallback) => {
 async function run() {
     // A layer that only follows the pointer, like reveal does.
     registerLayer('pointer-probe', () => ({ tracksPointer: true, attach() {}, detach() {}, write: () => false }));
+    // A layer that paints outside the shape, like a shadow, by as much as the --halo-* properties say.
+    const haloLength = (name: string) => ({ name, syntax: { type: 'length' as const }, initial: '0px', inherits: false });
+    registerLayer('halo', () => ({
+        schema: [haloLength('--halo-top'), haloLength('--halo-x'), haloLength('--halo-bottom')],
+        static: true,
+        overflow: (v) => [v.length('--halo-top'), v.length('--halo-x'), v.length('--halo-bottom'), v.length('--halo-x')],
+        attach() {},
+        detach() {},
+        write: () => false,
+    }));
     register();
     await frames(4);
     const a = byId('a');
@@ -58,23 +68,13 @@ async function run() {
     const expected = toSvgPath(resolve(shapeSpecFrom(st.values!, 160, 60), { borderWidths: borderWidthsFrom(st.values!) }).outline);
     check('fill path matches resolve()', fillPath(a) === expected && expected.length > 0, fillPath(a).slice(0, 60));
 
-    // 1b. A layer's overflow grows the paint box per side: shadow blur 10 reaches 15px, moved
-    // down by 6px.
+    // 1b. A layer's overflow grows the paint box per side.
     {
         const sh = byId('sh');
         const p = sh.debugState.paint;
-        check('shadow overflow grows the paint box', p.left === -15 && p.top === -9 && p.width === 130 && p.height === 50 + 9 + 21, JSON.stringify(p));
+        check('layer overflow grows the paint box', p.left === -15 && p.top === -9 && p.width === 130 && p.height === 50 + 9 + 21, JSON.stringify(p));
         const layers = sh.shadowRoot!.querySelector('.layers') as HTMLElement;
         check('the layer box takes the paint box', layers.className === 'layers box' && layers.style.top === '-9px', layers.className + ' ' + layers.style.cssText);
-        const canvas = sh.shadowRoot!.querySelector('.layer-shadow canvas') as HTMLCanvasElement;
-        const ratio = canvas.width / p.width;
-        const alpha = (x: number, y: number) => canvas.getContext('2d')!.getImageData(Math.round((x - p.left) * ratio), Math.round((y - p.top) * ratio), 1, 1).data[3];
-        const below = alpha(50, 56);
-        const inside = alpha(50, 25);
-        const far = alpha(50, 70);
-        check('shadow is drawn below the shape', below > 60, `alpha=${below}`);
-        check('shadow is cut out under the shape', inside === 0, `alpha=${inside}`);
-        check('shadow fades out at the paint box edge', far < 8, `alpha=${far}`);
     }
 
     // 1c. Shared edge properties apply to every side unless a side sets its own, and a
@@ -165,7 +165,7 @@ async function run() {
     await frames(8);
     check('released surface returns flat', content.style.transform === '' && fillBox.style.transform === '' && getComputedStyle(fillBox).display === 'contents', content.style.transform);
 
-    // 4b. With a paint box larger than the element (a shadow), the layer containers cover the
+    // 4b. With a paint box larger than the element (a halo), the layer containers cover the
     // paint box and still turn around the element's center: the drawing lands where the tilt
     // homography puts the paint box.
     {
@@ -173,7 +173,7 @@ async function run() {
         sh.style.setProperty('--ax-tilt-mode', 'absolute');
         sh.style.setProperty('--ax-tilt-depth', '30px');
         // A paint box far off center, so a wrong origin shows.
-        sh.style.setProperty('--ax-shadow-y', '40px');
+        sh.style.setProperty('--halo-bottom', '55px');
         sh.style.setProperty('--ax-tilt-perspective', '300px');
         await frames(4);
         await ask('press-sh');
@@ -206,7 +206,7 @@ async function run() {
         await ask('release');
         await frames(8);
         for (const name of ['mode', 'depth', 'perspective']) sh.style.removeProperty(`--ax-tilt-${name}`);
-        sh.style.setProperty('--ax-shadow-y', '6px');
+        sh.style.setProperty('--halo-bottom', '21px');
     }
 
     // 5a. Nested surfaces: with the outer one tilted, the inner one maps the pointer through

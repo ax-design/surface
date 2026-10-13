@@ -1,6 +1,5 @@
 import { AxSurface } from './element.js';
 import { createFillLayer } from './fill.js';
-import { createShadowLayer } from './shadow.js';
 import { hasLayer, registerLayer } from './layer.js';
 import { services } from './global.js';
 
@@ -20,16 +19,14 @@ export { Scheduler } from './scheduler.js';
 export type { FrameClient, Quality } from './scheduler.js';
 export { CORE_SCHEMA, Values, borderWidthsFrom, shapeSpecFrom } from './schema.js';
 export { createFillLayer } from './fill.js';
-export { createShadowLayer } from './shadow.js';
 
 let registered = false;
 
-// Defines <ax-surface> and the built-in layers. Safe to call more than once.
+// Defines <ax-surface> and the built-in layer. Safe to call more than once.
 export function register(): void {
     if (registered) return;
     registered = true;
-    // Another copy of this package may have registered them already.
+    // Another copy of this package may have registered it already.
     if (!hasLayer('fill')) registerLayer('fill', createFillLayer);
-    if (!hasLayer('shadow')) registerLayer('shadow', createShadowLayer);
     if (!customElements.get(AxSurface.ElementName)) customElements.define(AxSurface.ElementName, AxSurface);
 }
