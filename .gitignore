@@ -1,0 +1,4 @@
+node_modules/
+bench/dist/
+bench/results/
+bench/results-mac/

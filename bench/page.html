@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Surface bench</title>
+<style>
+  html, body { margin: 0; background: #f4f4f4; font: 14px/1.2 sans-serif; }
+  .grid { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; }
+  .btn { width: 128px; height: 40px; border: 0; background: #e0e0e0; color: #111; }
+  /* Settings live on the element each implementation reads its style from. */
+  ax-reveal, ax-probe-surface {
+    --reveal-color: rgb(0, 0, 0);
+    --reveal-border-decoration-type: round;
+    --reveal-border-decoration-radius: 4px;
+    --ax-radius: 4px;
+    --ax-border-width: 1px;
+  }
+  .alt ax-reveal, .alt ax-probe-surface {
+    --reveal-color: rgb(0, 60, 200);
+    --reveal-border-decoration-radius: 12px;
+    --ax-radius: 12px;
+    --ax-edge-left-depth: -6px;
+    --ax-edge-left-kind: arc;
+    --ax-edge-right-depth: -6px;
+    --ax-edge-right-kind: arc;
+    --ax-corner-top-left-shift-x: 10%;
+    --ax-corner-bottom-right-shift-x: 10%;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="module" src="./harness.ts"></script>
+</body>
+</html>
