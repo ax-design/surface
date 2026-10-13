@@ -161,6 +161,10 @@ async function run() {
     } else {
         check('local pointer maps back to the screen pointer', false, 'no local pointer or tilt');
     }
+    // release() ends the press while the pointer is still down (a container took the gesture).
+    t.release();
+    await frames(8);
+    check('release() returns the surface flat while pressed', content.style.transform === '', content.style.transform);
     await ask('release');
     await frames(8);
     check('released surface returns flat', content.style.transform === '' && fillBox.style.transform === '' && getComputedStyle(fillBox).display === 'contents', content.style.transform);

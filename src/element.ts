@@ -451,11 +451,14 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         this.requestFrame();
     };
 
-    private release() {
+    // Ends the press before the pointer is up: the tilt and the press effects of the layers go
+    // back as on a release. For a container that takes the gesture over, such as a tile drag.
+    release(): void {
         if (!this.pressPoint || this.released) return;
         this.released = true;
         this.tiltDirty = true;
         if (!this.layers.some((l) => l.tracksPointer)) services().pointerListeners.delete(this);
+        this.requestFrame();
     }
 
     // Hidden surfaces only collect dirty flags; becoming visible schedules the frame.
