@@ -124,6 +124,11 @@ const PRESETS: Preset[] = [
         ),
     },
     {
+        // Full scoops meet in the middle of every side; the shoulders round the points.
+        name: 'Soft star',
+        props: { '--ax-radius': '50%', '--ax-corner-shape': 'scoop', '--ax-corner-shoulder-radius': '8px' },
+    },
+    {
         // A square with a triangle out of every side; the triangles go out of the box.
         name: 'Sun',
         size: [64, 64],
@@ -180,6 +185,7 @@ const GROUPS: Group[] = [
         controls: [
             range('Radius', '--ax-radius', 0, 50, 1, '%', '0px'),
             select('Corners', '--ax-corner-shape', ['round', 'bevel', 'scoop', 'notch'], 'round'),
+            range('Shoulder', '--ax-corner-shoulder-radius', 0, 60, 1, 'px', '0px'),
         ],
     },
     {
@@ -190,6 +196,7 @@ const GROUPS: Group[] = [
             select('Shape', '--ax-corner-{corner}-shape', ['auto', 'round', 'bevel', 'scoop', 'notch'], 'auto'),
             range('Shift x', '--ax-corner-{corner}-shift-x', -20, 50, 1, '%', '0px'),
             range('Shift y', '--ax-corner-{corner}-shift-y', -20, 50, 1, '%', '0px'),
+            range('Shoulder', '--ax-corner-{corner}-shoulder-radius', 0, 60, 1, 'px', '0px'),
         ],
     },
     {
@@ -301,11 +308,13 @@ for (const g of GROUPS) {
 
 const resolveProp = (g: Group, c: Control) =>
     g.pick ? c.prop.replace(`{${g.pick.key}}`, (g.pick.key === 'corner' ? CORNERS : SIDES)[state.picked[g.pick.key]]) : c.prop;
-// A side that sets nothing shows the shared edge value it follows.
+// A side or corner that sets nothing shows the shared value it follows.
 const current = (prop: string): string => {
     if (prop in state.props) return state.props[prop];
     const side = /^--ax-edge-(top|right|bottom|left)-(.+)$/.exec(prop);
-    return side ? current(`--ax-edge-${side[2]}`) : defaults[prop];
+    if (side) return current(`--ax-edge-${side[2]}`);
+    if (/^--ax-corner-[a-z]+-[a-z]+-shoulder-radius$/.test(prop)) return current('--ax-corner-shoulder-radius');
+    return defaults[prop];
 };
 
 function parseColor(value: string): { hex: string; alpha: number } {

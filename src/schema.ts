@@ -41,14 +41,18 @@ function edgeSpecs(prefix: string): PropertySpec[] {
     ];
 }
 
-// The feature of every side: --ax-edge-kind, --ax-edge-depth and so on. Registered but never
-// read: EDGE_FALLBACK_CSS gives each side's property the shared value unless the side sets its
-// own, and the surface reads the sides.
-export const EDGE_SHARED_SCHEMA: PropertySpec[] = edgeSpecs('--ax-edge-');
+// Values for every side or corner at once: --ax-edge-kind, --ax-edge-depth, ...,
+// --ax-corner-shoulder-radius. Registered but never read: SHARED_FALLBACK_CSS gives each side's
+// or corner's property the shared value unless it sets its own, and the surface reads those.
+export const SHARED_SCHEMA: PropertySpec[] = [...edgeSpecs('--ax-edge-'), len('--ax-corner-shoulder-radius', '0px')];
 
 // For the host's shadow stylesheet. :host rules lose to every author declaration on the element
-// (rules, inline styles, animations), so a side property set anywhere wins over the shared one.
-export const EDGE_FALLBACK_CSS = `:host { ${flatten(SIDES.map((s) => EDGE_PARAMS.map((p) => `--ax-edge-${s}-${p}: var(--ax-edge-${p});`))).join(' ')} }`;
+// (rules, inline styles, animations), so a property set anywhere wins over the shared one.
+const fallbacks = [
+    ...flatten(SIDES.map((s) => EDGE_PARAMS.map((p) => `--ax-edge-${s}-${p}: var(--ax-edge-${p});`))),
+    ...CORNERS.map((c) => `--ax-corner-${c}-shoulder-radius: var(--ax-corner-shoulder-radius);`),
+];
+export const SHARED_FALLBACK_CSS = `:host { ${fallbacks.join(' ')} }`;
 
 export const CORE_SCHEMA: PropertySpec[] = [
     lp('--ax-radius', '0px'),
@@ -57,6 +61,7 @@ export const CORE_SCHEMA: PropertySpec[] = [
     ...CORNERS.map((c) => kw(`--ax-corner-${c}-shape`, [...CORNER_SHAPES, 'auto'], 'auto')),
     ...CORNERS.map((c) => lp(`--ax-corner-${c}-shift-x`, '0px')),
     ...CORNERS.map((c) => lp(`--ax-corner-${c}-shift-y`, '0px')),
+    ...CORNERS.map((c) => len(`--ax-corner-${c}-shoulder-radius`, '0px')),
     ...flatten(
         SIDES.map((s) => {
             // A flat edge ignores its feature parameters; skip reading them.
@@ -128,6 +133,7 @@ const NAMES = {
     cornerShape: CORNERS.map((c) => `--ax-corner-${c}-shape`),
     shiftX: CORNERS.map((c) => `--ax-corner-${c}-shift-x`),
     shiftY: CORNERS.map((c) => `--ax-corner-${c}-shift-y`),
+    cornerShoulder: CORNERS.map((c) => `--ax-corner-${c}-shoulder-radius`),
     kind: SIDES.map((s) => `--ax-edge-${s}-kind`),
     depth: SIDES.map((s) => `--ax-edge-${s}-depth`),
     span: SIDES.map((s) => `--ax-edge-${s}-span`),
@@ -149,6 +155,7 @@ export function shapeSpecFrom(v: Values, width: number, height: number): ShapeSp
             shape: (shape === 'auto' || !shape ? generalShape : shape) as CornerShape,
             shiftX: v.lp(NAMES.shiftX[i], width),
             shiftY: v.lp(NAMES.shiftY[i], height),
+            shoulderRadius: v.length(NAMES.cornerShoulder[i]),
         };
     }) as ShapeSpec['corners'];
     const edges = [0, 1, 2, 3].map((i) => {

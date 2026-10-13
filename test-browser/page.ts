@@ -102,6 +102,12 @@ async function run() {
         e.className = '';
         await frames(4);
         check('removing the shared properties restores flat sides', read() === 'flat 0, flat 0, flat 0, flat 0', read());
+        e.classList.add('corners');
+        await frames(4);
+        const shoulders = ['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((c) => e.debugState.values!.length(`--ax-corner-${c}-shoulder-radius`)).join(' ');
+        check('shared corner shoulder radius, one corner overridden', shoulders === '7 3 7 7', shoulders);
+        e.className = '';
+        await frames(4);
     }
 
     // 2. Ancestor class change is picked up.

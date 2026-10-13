@@ -111,6 +111,14 @@ Shape properties are not inherited, set them on the `ax-surface` element itself.
 
 **Description:** The shape of one corner. `auto` means "use `--ax-corner-shape`".
 
+### --ax-corner-shoulder-radius, --ax-corner-{corner}-shoulder-radius
+
+**Type:** `<length>`
+
+**Default:** `0px`
+
+**Description:** Rounds the two points where a `bevel`, `scoop` or `notch` corner meets the sides. `round` corners ignore it. The general property sets every corner unless a corner sets its own. With `--ax-radius: 50%` and `scoop`, neighboring corners meet in the middle of each side, and the shoulder radius rounds those points into a soft star; very large values turn it into a circle.
+
 ### --ax-corner-{corner}-shift-x, --ax-corner-{corner}-shift-y
 
 **Type:** `<length-percentage>`
