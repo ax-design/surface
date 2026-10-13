@@ -1,7 +1,8 @@
 import { apply, borderInner, invert, resolve, tiltHomography } from '@ax-design/shape';
 import type { Homography, ResolvedShape, TiltParams } from '@ax-design/shape';
 import { StyleBinding, StyleSchema } from '@ax-design/typed-om';
-import type { LengthPercentage, PropertyValue } from '@ax-design/typed-om';
+import type { LengthPercentage, PropertySpec, PropertyValue } from '@ax-design/typed-om';
+import type { Quad, ShapeSpec } from '@ax-design/shape';
 import type { TriggerTarget } from './triggers.js';
 import type { PointerListener, PointerState } from './global.js';
 import { services } from './global.js';
@@ -40,19 +41,28 @@ const STYLE = `
 const template = typeof document !== 'undefined' ? document.createElement('template') : null;
 if (template) template.innerHTML = `<style>${STYLE}</style><div class="tilt"><div class="layers"></div><div class="content"><slot></slot></div></div>`;
 
-// Schemas are compiled once per layer combination and shared by every surface using it.
+// Schemas are compiled once per element class and layer combination, and shared by every
+// surface using it.
 const schemas: { [key: string]: StyleSchema } = {};
-function schemaFor(names: string[], layers: SurfaceLayer[]): StyleSchema {
-    const key = names.join(' ');
+function schemaFor(key: string, extra: PropertySpec[], layers: SurfaceLayer[]): StyleSchema {
     if (!schemas[key]) {
         const seen = new Set<string>();
         const specs = CORE_SCHEMA.slice();
         for (const s of specs) seen.add(s.name);
-        for (const layer of layers) for (const s of layer.schema || []) if (!seen.has(s.name)) (seen.add(s.name), specs.push(s));
+        const add = (s: PropertySpec) => {
+            if (seen.has(s.name)) return;
+            seen.add(s.name);
+            specs.push(s);
+        };
+        extra.forEach(add);
+        for (const layer of layers) (layer.schema || []).forEach(add);
         schemas[key] = new StyleSchema(specs);
     }
     return schemas[key];
 }
+
+// Server-side rendering imports this module without a DOM.
+const ElementBase: typeof HTMLElement = typeof HTMLElement !== 'undefined' ? HTMLElement : (class {} as unknown as typeof HTMLElement);
 
 function sameValue(a: PropertyValue, b: PropertyValue): boolean {
     if (a === b) return true;
@@ -63,8 +73,8 @@ function sameValue(a: PropertyValue, b: PropertyValue): boolean {
     return x.px === y.px && x.percent === y.percent;
 }
 
-export class AxSurface extends HTMLElement implements FrameClient, PointerListener, TriggerTarget {
-    static readonly ElementName = 'ax-surface';
+export class AxSurface extends ElementBase implements FrameClient, PointerListener, TriggerTarget {
+    static readonly ElementName: string = 'ax-surface';
     static get observedAttributes() {
         return ['layers', 'observe'];
     }
@@ -152,6 +162,41 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
         this.layerBox = this.root.querySelector('.layers') as HTMLElement;
     }
 
+    // Extension points for elements built on the surface (the legacy <ax-reveal> adapters).
+    // Subclasses with their own extraSchema must set a unique schemaKey.
+    static schemaKey = 'ax-surface';
+    static extraSchema: PropertySpec[] = [];
+
+    // Layers to build, in paint order. Default: the `layers` attribute.
+    protected layerNames_(): string[] {
+        return (this.getAttribute('layers') || '').split(/\s+/).filter(Boolean);
+    }
+
+    protected shapeFor(values: Values, width: number, height: number): ShapeSpec {
+        return shapeSpecFrom(values, width, height);
+    }
+
+    protected borderWidthsFor(values: Values): Quad<number> {
+        return borderWidthsFrom(values);
+    }
+
+    // False hides the pointer from the layers (outside a reveal boundary).
+    protected pointerAllowed(): boolean {
+        return true;
+    }
+
+    // Style values of the last read, for subclasses.
+    protected get currentValues(): Values | null {
+        return this.values;
+    }
+
+    // The largest `reach` of the layers, for boundary tests.
+    protected layerReach(): number {
+        let reach = 0;
+        for (const layer of this.layers) if (layer.reach) reach = Math.max(reach, layer.reach(this.width, this.height));
+        return reach;
+    }
+
     connectedCallback() {
         this.connected = true;
         this.buildLayers();
@@ -235,7 +280,7 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
     }
 
     private buildLayers() {
-        const names = (this.getAttribute('layers') || '').split(/\s+/).filter(Boolean);
+        const names = this.layerNames_();
         if (names.join(' ') === this.layerNames.join(' ') && this.binding && !this.pendingLayers.length) return;
         this.pendingLayers.forEach((cancel) => cancel());
         this.pendingLayers = [];
@@ -256,7 +301,8 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
             this.activeNames.push(name);
         }
         if (this.visible) this.attachLayers();
-        const schema = schemaFor(this.activeNames, this.layers);
+        const ctor = this.constructor as typeof AxSurface;
+        const schema = schemaFor(`${ctor.schemaKey}|${this.activeNames.join(' ')}`, ctor.extraSchema, this.layers);
         this.stopObserving();
         this.binding = new StyleBinding(schema, this, this.root);
         this.values = new Values(schema.specs);
@@ -371,8 +417,8 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
         if (geometryDirty) {
             this.geometryPending = false;
             this.geometryFresh = true;
-            this.borderWidths = borderWidthsFrom(v);
-            this.shape = resolve(shapeSpecFrom(v, this.width, this.height), { borderWidths: this.borderWidths });
+            this.borderWidths = this.borderWidthsFor(v);
+            this.shape = resolve(this.shapeFor(v, this.width, this.height), { borderWidths: this.borderWidths });
             const b = this.shape.bounds;
             const left = Math.min(0, b.left) - ANTIALIAS_MARGIN;
             const top = Math.min(0, b.top) - ANTIALIAS_MARGIN;
@@ -425,7 +471,9 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
 
         // Pointer in local coordinates, through the inverse tilt.
         const pointer = services().pointer;
-        if (this.rect && pointer.present) {
+        if (this.rect && pointer.present && !this.pointerAllowed()) {
+            this.local = null;
+        } else if (this.rect && pointer.present) {
             const screen = { x: pointer.x - this.rect.left, y: pointer.y - this.rect.top };
             const p = this.homography ? apply(invert(this.homography), screen) : screen;
             this.local = {

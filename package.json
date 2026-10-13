@@ -7,7 +7,8 @@
     "bench": "bun bench/run.ts",
     "build": "tsc -p tsconfig.build.json",
     "test:browser": "bun test-browser/run.ts",
-    "demo": "bun demo/serve.ts"
+    "demo": "bun demo/serve.ts",
+    "check": "tsc -p tsconfig.check.json"
   },
   "devDependencies": {
     "playwright": "^1.64.0",
@@ -26,5 +27,13 @@
   "dependencies": {
     "@ax-design/shape": "link:@ax-design/shape",
     "@ax-design/typed-om": "link:@ax-design/typed-om"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "source": "./src/index.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
   }
 }

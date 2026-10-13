@@ -13,6 +13,10 @@ export interface PointerState {
     present: boolean;
     pressed: boolean;
     pointerType: string;
+    // The browser took over a touch for scrolling (pointercancel). The finger is followed with
+    // touch events until it leaves the screen; between those throttled events the local
+    // pointer of each surface stays put, so the highlight stays anchored to the content.
+    touchScrolling: boolean;
 }
 
 export interface PointerListener {
@@ -46,18 +50,27 @@ function warnOnce(api: string, consequence: string) {
 }
 
 function createServices(): Services {
-    const pointer: PointerState = { x: 0, y: 0, present: false, pressed: false, pointerType: 'mouse' };
+    const pointer: PointerState = { x: 0, y: 0, present: false, pressed: false, pointerType: 'mouse', touchScrolling: false };
     const pointerListeners = new Set<PointerListener>();
 
     if (typeof PointerEvent !== 'undefined') {
+        const notify = (type: string, event: Event) => pointerListeners.forEach((l) => l.onPointer(pointer, type, event as PointerEvent));
         const update = (type: string) => (event: PointerEvent) => {
             pointer.x = event.clientX;
             pointer.y = event.clientY;
             pointer.pointerType = event.pointerType;
-            if (type === 'pointerdown') pointer.pressed = true;
+            if (type === 'pointerdown') {
+                pointer.pressed = true;
+                pointer.touchScrolling = false;
+            }
             if (type === 'pointerup' || type === 'pointercancel') pointer.pressed = false;
-            pointer.present = !(type === 'pointercancel' || (type === 'pointerup' && event.pointerType !== 'mouse'));
-            pointerListeners.forEach((l) => l.onPointer(pointer, type, event));
+            if (type === 'pointercancel' && event.pointerType === 'touch') {
+                pointer.touchScrolling = true;
+                pointer.present = true;
+            } else {
+                pointer.present = !(type === 'pointercancel' || (type === 'pointerup' && event.pointerType !== 'mouse'));
+            }
+            notify(type, event);
         };
         for (const type of ['pointermove', 'pointerdown', 'pointerup', 'pointercancel']) {
             window.addEventListener(type, update(type) as EventListener, { passive: true, capture: true });
@@ -66,8 +79,27 @@ function createServices(): Services {
             if ((event as PointerEvent).pointerType !== 'mouse') return;
             pointer.present = false;
             pointer.pressed = false;
-            pointerListeners.forEach((l) => l.onPointer(pointer, 'pointerleave', event as PointerEvent));
+            notify('pointerleave', event);
         });
+        // While the browser scrolls under a finger, pointer events stop but touch events go on.
+        window.addEventListener(
+            'touchmove',
+            (event) => {
+                if (!pointer.touchScrolling || !event.touches.length) return;
+                pointer.x = event.touches[0].clientX;
+                pointer.y = event.touches[0].clientY;
+                notify('touchmove', event);
+            },
+            { passive: true, capture: true }
+        );
+        const touchEnd = (event: TouchEvent) => {
+            if (!pointer.touchScrolling || event.touches.length) return;
+            pointer.touchScrolling = false;
+            pointer.present = false;
+            notify('pointerleave', event);
+        };
+        window.addEventListener('touchend', touchEnd, { passive: true, capture: true });
+        window.addEventListener('touchcancel', touchEnd, { passive: true, capture: true });
     } else {
         warnOnce('PointerEvent', 'pointer effects are disabled');
     }

@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["ES2017", "DOM"],
+    "module": "ES2015",
+    "moduleResolution": "node",
+    "declaration": true,
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@ax-design/shape": ["../shape/src/index.ts"],
+      "@ax-design/typed-om": ["../typed-om/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

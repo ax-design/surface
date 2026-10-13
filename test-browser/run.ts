@@ -4,7 +4,8 @@ import { join } from 'node:path';
 const dir = import.meta.dir;
 const dist = join(dir, 'dist');
 if (!process.env.SKIP_BUILD) {
-    const result = await Bun.build({ entrypoints: [join(dir, 'page.html')], outdir: dist });
+    // Sibling packages resolve to their sources through the `source` export condition.
+    const result = await Bun.build({ entrypoints: [join(dir, 'page.html')], outdir: dist, conditions: ['source'] });
     if (!result.success) throw new Error(result.logs.join('\n'));
 }
 const server = Bun.serve({
