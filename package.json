@@ -4,9 +4,27 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "bench": "bun bench/run.ts"
+    "bench": "bun bench/run.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "test:browser": "bun test-browser/run.ts",
+    "demo": "bun demo/serve.ts"
   },
   "devDependencies": {
-    "playwright": "^1.59.0"
+    "playwright": "^1.64.0",
+    "typescript": "^5.6.0",
+    "@types/bun": "latest"
+  },
+  "description": "Surface coordinator of the Axiom Design System: one shape, one tilt and one frame scheduler for every visual layer.",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "sideEffects": false,
+  "dependencies": {
+    "@ax-design/shape": "link:@ax-design/shape",
+    "@ax-design/typed-om": "link:@ax-design/typed-om"
   }
 }

@@ -1,0 +1,18 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>surface browser test</title>
+<style>
+  body { margin: 0; padding: 20px; font: 14px sans-serif; }
+  ax-surface { width: 160px; height: 60px; --ax-fill-color: #fff; --ax-border-color: #333; --ax-border-width: 2px; }
+  .a { --ax-radius: 10px; }
+  .theme .a { --ax-radius: 20px; --ax-corner-shape: bevel; }
+  .h:hover { --ax-radius: 30px; }
+  .t { --ax-tilt-mode: absolute; --ax-tilt-depth: 3px; }
+  .far { margin-top: 3000px; }
+</style></head>
+<body>
+<ax-surface id="a" layers="fill" class="a"></ax-surface>
+<ax-surface id="h" layers="fill" class="h"></ax-surface>
+<ax-surface id="t" layers="fill" class="a t"></ax-surface>
+<div class="far"><ax-surface id="far" layers="fill" class="a"></ax-surface></div>
+<script type="module" src="./page.ts"></script>
+</body></html>

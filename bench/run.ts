@@ -111,7 +111,7 @@ async function safariDriver(): Promise<Driver> {
 const driver = browserName === 'safari' ? await safariDriver() : await playwrightDriver();
 const rows: Record<string, unknown>[] = [];
 for (const impl of impls)
-  for (const variant of impl === 'probe' ? variants : [''])
+  for (const variant of impl === 'probe' || impl === 'surface' ? variants : [''])
     for (const scenario of scenarios)
         for (const mode of modes)
             for (const n of counts)

@@ -18,7 +18,7 @@ const fmt = (x: number) => (Number.isNaN(x) ? '-' : x.toFixed(2));
 
 const groups = new Map<string, Row[]>();
 for (const r of rows) {
-    const label = r.impl === 'probe' ? `probe/${r.variant}` : r.impl;
+    const label = r.variant ? `${r.impl}/${r.variant}` : r.impl;
     const key = [r.browser, `x${r.throttle}`, r.scenario, label, r.scenario === 'sweep' || r.impl !== 'probe' ? r.mode : '-', r.count].join('|');
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(r);

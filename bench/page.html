@@ -9,14 +9,16 @@
   .grid { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; }
   .btn { width: 128px; height: 40px; border: 0; background: #e0e0e0; color: #111; }
   /* Settings live on the element each implementation reads its style from. */
-  ax-reveal, ax-probe-surface {
+  ax-reveal, ax-probe-surface, ax-surface {
+    --ax-fill-color: #e0e0e0;
+    --ax-border-color: #888;
     --reveal-color: rgb(0, 0, 0);
     --reveal-border-decoration-type: round;
     --reveal-border-decoration-radius: 4px;
     --ax-radius: 4px;
     --ax-border-width: 1px;
   }
-  .alt ax-reveal, .alt ax-probe-surface {
+  .alt ax-reveal, .alt ax-probe-surface, .alt ax-surface {
     --reveal-color: rgb(0, 60, 200);
     --reveal-border-decoration-radius: 12px;
     --ax-radius: 12px;
@@ -26,7 +28,9 @@
     --ax-edge-right-kind: arc;
     --ax-corner-top-left-shift-x: 10%;
     --ax-corner-bottom-right-shift-x: 10%;
+    --ax-fill-color: #d0d8ff;
   }
+  ax-surface { display: inline-block; }
 </style>
 </head>
 <body>

@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Surface demo</title>
+<style>
+  body { margin: 0; padding: 24px; background: #eef0f3; font: 14px/1.3 system-ui, sans-serif; color: #111; }
+  .grid { display: flex; flex-wrap: wrap; gap: 28px; }
+  ax-surface { width: 160px; height: 64px; --ax-fill-color: #fff; --ax-border-color: #3b4252; --ax-border-width: 1.5px; }
+  ax-surface .label { display: flex; align-items: center; justify-content: center; height: 100%; }
+  .round { --ax-radius: 12px; }
+  .pill { --ax-radius: 50%; }
+  .bevel { --ax-radius: 14px; --ax-corner-shape: bevel; }
+  .scoop { --ax-radius: 14px; --ax-corner-shape: scoop; }
+  .bun { --ax-radius: 24px; --ax-edge-left-kind: arc; --ax-edge-left-depth: -8px; --ax-edge-left-span: 40%;
+         --ax-edge-right-kind: arc; --ax-edge-right-depth: -8px; --ax-edge-right-span: 40%; }
+  .slanted { --ax-radius: 8px; --ax-corner-top-left-shift-y: 20%; }
+  .italic { --ax-radius: 6px; --ax-corner-top-left-shift-x: 12%; --ax-corner-bottom-right-shift-x: 12%; }
+  .tab { --ax-radius: 8px; --ax-edge-top-kind: rect; --ax-edge-top-depth: 10px; --ax-edge-top-span: 40%; --ax-edge-top-at: 30%;
+         --ax-edge-top-tip-radius: 6px; --ax-edge-top-shoulder-radius: 4px; }
+  .ticket { --ax-radius: 6px; --ax-edge-left-kind: arc; --ax-edge-left-depth: -9px; --ax-edge-left-span: 18px;
+            --ax-edge-right-kind: arc; --ax-edge-right-depth: -9px; --ax-edge-right-span: 18px; --ax-edge-right-shoulder-radius: 2px; --ax-edge-left-shoulder-radius: 2px; }
+  .tilt { --ax-tilt-mode: absolute; --ax-tilt-depth: 2px; }
+  .theme-alt ax-surface { --ax-fill-color: #1e2533; --ax-border-color: #8fbcbb; color: #eceff4; }
+  .theme-alt .round { --ax-radius: 4px; --ax-corner-shape: bevel; }
+  .hoverable:hover { --ax-radius: 32px; --ax-fill-color: #e5f0ff; }
+</style>
+</head>
+<body>
+<div class="grid" id="grid">
+  <ax-surface layers="fill" class="round tilt"><div class="label">round</div></ax-surface>
+  <ax-surface layers="fill" class="pill tilt"><div class="label">pill</div></ax-surface>
+  <ax-surface layers="fill" class="bevel"><div class="label">bevel</div></ax-surface>
+  <ax-surface layers="fill" class="scoop"><div class="label">scoop</div></ax-surface>
+  <ax-surface layers="fill" class="bun tilt"><div class="label">bun</div></ax-surface>
+  <ax-surface layers="fill" class="slanted"><div class="label">slanted</div></ax-surface>
+  <ax-surface layers="fill" class="italic tilt"><div class="label">italic</div></ax-surface>
+  <ax-surface layers="fill" class="tab"><div class="label">tab</div></ax-surface>
+  <ax-surface layers="fill" class="ticket tilt"><div class="label">ticket</div></ax-surface>
+  <ax-surface layers="fill" class="round hoverable"><div class="label">hover me</div></ax-surface>
+</div>
+<script type="module" src="./demo.ts"></script>
+</body>
+</html>

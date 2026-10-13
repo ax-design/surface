@@ -2,3 +2,5 @@ node_modules/
 bench/dist/
 bench/results/
 bench/results-mac/
+test-browser/dist/
+dist/
