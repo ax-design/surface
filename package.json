@@ -1,33 +1,26 @@
 {
   "name": "@ax-design/surface",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "bench": "bun bench/run.ts",
-    "build": "tsc -p tsconfig.build.json",
-    "test:browser": "bun test-browser/run.ts",
-    "demo": "bun demo/serve.ts",
-    "check": "tsc -p tsconfig.check.json"
-  },
-  "devDependencies": {
-    "playwright": "^1.64.0",
-    "typescript": "^5.6.0",
-    "@types/bun": "latest"
-  },
-  "description": "Surface coordinator of the Axiom Design System: one shape, one tilt and one frame scheduler for every visual layer.",
-  "license": "MIT",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist",
-    "src"
+  "version": "0.1.0",
+  "description": "Web component that implements Surface of Axiom Design System: one shape, one tilt and one frame scheduler for every visual layer.",
+  "keywords": [
+    "web-components",
+    "shape",
+    "tilt",
+    "axiom-design"
   ],
-  "sideEffects": false,
-  "dependencies": {
-    "@ax-design/shape": "link:@ax-design/shape",
-    "@ax-design/typed-om": "link:@ax-design/typed-om"
+  "homepage": "https://github.com/ax-design/surface#readme",
+  "bugs": {
+    "url": "https://github.com/ax-design/surface/issues"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ax-design/surface.git"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -35,5 +28,29 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/test-utils.ts"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "bench": "bun bench/run.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "test:browser": "bun test-browser/run.ts",
+    "demo": "bun demo/serve.ts",
+    "check": "tsc -p tsconfig.check.json",
+    "prepublishOnly": "bun run build"
+  },
+  "dependencies": {
+    "@ax-design/shape": "^0.1.0",
+    "@ax-design/typed-om": "^0.1.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.0",
+    "typescript": "^5.6.0",
+    "@types/bun": "latest"
   }
 }
