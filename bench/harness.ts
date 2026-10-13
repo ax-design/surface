@@ -122,7 +122,20 @@ async function run(): Promise<BenchResult> {
         await nextFrame();
         work = 0;
         let last = await nextFrame();
+        // Scheduler state of the surface stack, when present.
+        const surfaceScheduler = () => {
+            const key = Symbol.for('@ax-design/surface.v1');
+            const services = (globalThis as unknown as Record<symbol, { scheduler: { level: number; lastDeferred: number } } | undefined>)[key];
+            return services ? services.scheduler : null;
+        };
+        let maxLevel = 0;
+        let deferred = 0;
         for (let frame = 1; frame <= total; frame++) {
+            const sched = surfaceScheduler();
+            if (sched) {
+                maxLevel = Math.max(maxLevel, sched.level);
+                deferred += sched.lastDeferred;
+            }
             ({ x, y } = pathPoint(frame, total));
             const before = work;
             dispatchPointer('pointermove', x, y, mode, impl, root);
@@ -134,6 +147,7 @@ async function run(): Promise<BenchResult> {
             last = now;
         }
         result.sweep = frameStats(works, intervals);
+        result.scheduler = { maxLevel, deferred };
         return result;
     }
 

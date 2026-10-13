@@ -31,6 +31,7 @@ export interface BenchResult {
     isolated?: boolean;
     mountMs?: number;
     sweep?: FrameStats;
+    scheduler?: { maxLevel: number; deferred: number };
     toggleWorkMs?: number;
     toggleFlushMs?: number;
     probe?: { reads: number; readMs: number; elements: number; slowPath: number };

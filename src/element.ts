@@ -13,7 +13,11 @@ import { CORE_SCHEMA, Values, borderWidthsFrom, shapeSpecFrom } from './schema.j
 import { isResting, lerpTilt, restingTilt, tiltFor, tiltTransform } from './tilt.js';
 
 const TILT_DURATION = 50;
-const ANTIALIAS_MARGIN = 2;
+// Extra paint area around the layout box. Zero: a canvas that sticks out of its element overlaps
+// the neighbors, and an accelerated canvas overlapping other content makes the compositor
+// promote that content too (Layerize and Paint tripled in the 1000-surface sweep). Outward
+// features still grow the paint box to their bounds.
+const ANTIALIAS_MARGIN = 0;
 
 const STYLE = `
 :host { display: inline-block; position: relative; }
@@ -22,9 +26,14 @@ const STYLE = `
 :host([inline-flex]) { display: inline-flex; }
 :host([grid]) { display: grid; }
 :host([inline-grid]) { display: inline-grid; }
-.tilt { position: relative; width: 100%; height: 100%; }
-.layers { position: absolute; pointer-events: none; }
-.layers > div { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+/* Only three positioned boxes per surface (host, layer drawing, content), like the legacy
+   <ax-reveal>: every positioned box is a paint chunk the compositor walks on every frame a
+   canvas changes. .tilt is a plain box until it gets a transform; layer containers take no box
+   unless outward features grow the paint area beyond the layout box. */
+.tilt { width: 100%; height: 100%; }
+.layers, .layers > div { display: contents; }
+.layers.box { display: block; position: absolute; pointer-events: none; }
+.layers.box > div { display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
 .content { position: relative; width: 100%; height: 100%; }
 `;
 
@@ -97,6 +106,39 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
     private previous: PropertyValue[] = [];
     private uniformBorder: number | null = null;
     private hostAnimating = false;
+    private reads = 0;
+    private geometryPending = false;
+    private paintKey = '';
+    // Geometry computed this frame: layers must treat it as a style and size change.
+    private geometryFresh = false;
+
+    // Cached inner edge for flat surfaces with uniform borders (this.inner is empty then).
+    private ringCache: { x: number; y: number }[] | null = null;
+    private ringInner = (): { x: number; y: number }[] => {
+        if (this.uniformBorder === null) return this.inner;
+        if (!this.ringCache && this.shape) {
+            this.ringCache = borderInner(this.shape.outline, {
+                widths: this.borderWidths,
+                tolerance: 0.1 / (window.devicePixelRatio || 1),
+            }).inner;
+        }
+        return this.ringCache || [];
+    };
+
+    private needsGeometry(): boolean {
+        if (this.pressPoint || this.tiltNow || this.tiltTo) return true;
+        let reach = -1;
+        for (const layer of this.layers) {
+            if (layer.static) return true;
+            if (layer.reach) reach = Math.max(reach, layer.reach(this.width, this.height));
+        }
+        const pointer = services().pointer;
+        const r = this.rect || this.lastRect;
+        if (reach < 0 || !pointer.present || !r) return false;
+        const dx = Math.max(r.left - pointer.x, 0, pointer.x - r.right);
+        const dy = Math.max(r.top - pointer.y, 0, pointer.y - r.bottom);
+        return dx * dx + dy * dy <= reach * reach;
+    }
     private rect: DOMRect | null = null;
     private lastRect: DOMRect | null = null;
     private local: LocalPointer | null = null;
@@ -305,6 +347,7 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
     read() {
         if (this.styleDirty && this.binding && this.values) {
             const next = this.binding.read();
+            this.reads++;
             // Triggers are coarse: most re-reads find nothing new and stop here.
             let same = this.previous.length === next.length;
             for (let i = 0; same && i < next.length; i++) same = sameValue(this.previous[i], next[i]);
@@ -322,8 +365,12 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
     compute(now: number) {
         const v = this.values;
         if (!v || !this.width || !this.height) return;
-        const geometryDirty = this.styleDirty || this.sizeDirty;
+        // Geometry is computed when a layer can use it; otherwise it waits (geometryPending).
+        const geometryDirty = (this.styleDirty || this.sizeDirty || this.geometryPending) && this.needsGeometry();
+        if (this.styleDirty || this.sizeDirty) this.geometryPending = true;
         if (geometryDirty) {
+            this.geometryPending = false;
+            this.geometryFresh = true;
             this.borderWidths = borderWidthsFrom(v);
             this.shape = resolve(shapeSpecFrom(v, this.width, this.height), { borderWidths: this.borderWidths });
             const b = this.shape.bounds;
@@ -363,6 +410,7 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
             this.homography = this.tiltNow ? tiltHomography(this.tiltNow) : null;
             const w = this.borderWidths;
             this.uniformBorder = !this.homography && w[0] === w[1] && w[1] === w[2] && w[2] === w[3] ? w[0] : null;
+            this.ringCache = null;
             if (this.uniformBorder !== null) {
                 this.inner = [];
             } else if (this.shape) {
@@ -396,14 +444,36 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
     // Phase 3: DOM writes.
     write(now: number, quality: Quality) {
         const v = this.values;
-        if (!v || !this.shape) return;
-        const changed = { style: this.styleDirty, size: this.sizeDirty, tilt: this.tiltChanged, pointer: this.pointerDirty };
+        if (!v) return;
+        if (!this.shape || this.geometryPending) {
+            // Nothing to draw yet; layers keep their last (cleared) state.
+            this.styleDirty = this.sizeDirty = this.pointerDirty = this.tiltDirty = false;
+            return;
+        }
+        const changed = {
+            style: this.styleDirty || this.geometryFresh,
+            size: this.sizeDirty || this.geometryFresh,
+            tilt: this.tiltChanged,
+            pointer: this.pointerDirty,
+        };
+        this.geometryFresh = false;
         if (changed.style || changed.size) {
-            const s = this.layerBox.style;
-            s.left = `${this.paint.left}px`;
-            s.top = `${this.paint.top}px`;
-            s.width = `${this.paint.width}px`;
-            s.height = `${this.paint.height}px`;
+            // The stylesheet default covers the layout box plus the antialias margin. Inline
+            // values are only written when outward features need more, so most surfaces never
+            // trigger layout here.
+            const p = this.paint;
+            const m = ANTIALIAS_MARGIN;
+            const isDefault = p.left === -m && p.top === -m && p.width === this.width + 2 * m && p.height === this.height + 2 * m;
+            const key = isDefault ? '' : `${p.left} ${p.top} ${p.width} ${p.height}`;
+            if (key !== this.paintKey) {
+                this.paintKey = key;
+                this.layerBox.className = isDefault ? 'layers' : 'layers box';
+                const s = this.layerBox.style;
+                s.left = isDefault ? '' : `${p.left}px`;
+                s.top = isDefault ? '' : `${p.top}px`;
+                s.width = isDefault ? '' : `${p.width}px`;
+                s.height = isDefault ? '' : `${p.height}px`;
+            }
         }
         if (changed.tilt) this.tiltBox.style.transform = this.tiltNow ? tiltTransform(this.tiltNow) : '';
 
@@ -415,6 +485,7 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
             borderWidths: this.borderWidths,
             uniformBorder: this.uniformBorder,
             borderInner: this.inner,
+            ringInner: this.ringInner,
             tilt: this.homography,
             pointer: this.local,
             values: v,
@@ -427,7 +498,8 @@ export class AxSurface extends HTMLElement implements FrameClient, PointerListen
         // An author transition on this surface or an ancestor: keep reading every frame.
         // getAnimations covers engines that fire no events for custom property transitions; it
         // is costly, so it runs only right after a change and while an animation was running.
-        if (!this.precise && (changed.style || this.hostAnimating) && typeof this.getAnimations === 'function') {
+        // The first read cannot see a running transition: transitions start on changes.
+        if (!this.precise && ((changed.style && this.reads > 1) || this.hostAnimating) && typeof this.getAnimations === 'function') {
             this.hostAnimating = this.mayAnimate() && this.getAnimations().length > 0;
         }
         const readNext = !this.precise && (this.hostAnimating || services().triggers.isAnimating(this));

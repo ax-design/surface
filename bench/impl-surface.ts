@@ -1,6 +1,6 @@
 // The new stack: <ax-surface layers="fill"> with the full read, detect and render pipeline.
 import { StyleBinding } from '@ax-design/typed-om';
-import { CORE_SCHEMA, register } from '@ax-design/surface';
+import { CORE_SCHEMA, register, services } from '@ax-design/surface';
 import type { BenchImpl } from './types.ts';
 
 export const surface: BenchImpl = {
@@ -9,8 +9,10 @@ export const surface: BenchImpl = {
         const variant = new URLSearchParams(location.search).get('variant');
         if (variant === 'no-detect') StyleBinding.prototype.observe = function () {};
         if (variant === 'inherit') for (const spec of CORE_SCHEMA) spec.inherits = true;
+        if (variant === 'no-io') (window as unknown as { IntersectionObserver?: unknown }).IntersectionObserver = undefined;
         if (variant === 'unregistered') (CSS as unknown as { registerProperty?: unknown }).registerProperty = undefined;
         register();
+        if (variant === 'fixed') services().scheduler.adaptive = false;
     },
     mount(root, count, layers = 'fill') {
         const grid = document.createElement('div');

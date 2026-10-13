@@ -27,13 +27,22 @@ export const PRIORITY_POINTER = 1e11;
 export const PRIORITY_IDLE = 0;
 
 const SLOW_RATIO = 1.5;
-const SLOW_FRAMES_TO_DEGRADE = 3;
+// Degrade when this many of the last WINDOW measured frames were slow.
+const WINDOW = 10;
+const SLOW_IN_WINDOW = 4;
 const HEALTHY_FRAMES_TO_RECOVER = 30;
+// Empty frames kept after the last work, so interactive periods measure back-to-back frames.
+// Without them, work driven by pointer events never sees two consecutive frames.
+const TAIL_FRAMES = 3;
 // Intervals outside this window come from suspended tabs or the first frame, not from load.
 const MIN_INTERVAL = 4;
 const MAX_INTERVAL = 150;
-// Share of the frame interval the budget may use, per level.
+// Share of the frame interval the JS budget may use, per level.
 const BUDGET_SHARE = [1, 0.4, 0.25, 0.15];
+// Share of the lower-priority clients that may update per frame, per level. Most of the cost
+// of a reveal update is not JS but canvas raster and compositing in the browser, which the JS
+// budget cannot see; limiting how many surfaces update lowers their frame rate instead.
+const CLIENT_SHARE = [1, 0.5, 0.25, 0.1];
 const MIN_BUDGET = 1.5;
 // Cost guess for a client never measured, ms.
 const DEFAULT_COST = 0.2;
@@ -52,18 +61,26 @@ export class Scheduler {
     private rafId = 0;
     private last = 0;
     private interval = 16.67;
-    private slow = 0;
+    private recent: boolean[] = [];
     private healthy = 0;
+    private tail = 0;
+    // True when the pending frame was requested by the previous frame itself.
+    private chained = false;
     // Global load level, 0 to 3.
     level: Quality = 0;
     // For tests and diagnostics: clients deferred in the last frame.
     lastDeferred = 0;
+    // Diagnostics switch: false keeps full speed whatever the load.
+    adaptive = true;
 
     request(client: FrameClient): void {
         if (this.queued.has(client)) return;
         this.queued.add(client);
         this.pending.push(client);
-        if (!this.rafId) this.rafId = requestAnimationFrame(this.run);
+        if (!this.rafId) {
+            this.rafId = requestAnimationFrame(this.run);
+            this.chained = false;
+        }
     }
 
     cancel(client: FrameClient): void {
@@ -83,20 +100,22 @@ export class Scheduler {
     }
 
     private measure(now: number) {
-        if (this.last) {
+        if (this.chained && this.last) {
             const delta = now - this.last;
             if (delta > MIN_INTERVAL && delta < MAX_INTERVAL) {
-                if (delta > this.interval * SLOW_RATIO) {
-                    this.slow++;
+                const slow = delta > this.interval * SLOW_RATIO;
+                this.recent.push(slow);
+                if (this.recent.length > WINDOW) this.recent.shift();
+                if (slow) {
                     this.healthy = 0;
-                    if (this.slow >= SLOW_FRAMES_TO_DEGRADE && this.level < 3) {
+                    const count = this.recent.filter(Boolean).length;
+                    if (this.adaptive && count >= SLOW_IN_WINDOW && this.level < 3) {
                         this.level = (this.level + 1) as Quality;
-                        this.slow = 0;
+                        this.recent = [];
                     }
                 } else {
                     // The reference interval only learns from healthy frames.
                     this.interval = this.interval * 0.9 + delta * 0.1;
-                    this.slow = 0;
                     this.healthy++;
                     if (this.healthy >= HEALTHY_FRAMES_TO_RECOVER && this.level > 0) {
                         this.level = (this.level - 1) as Quality;
@@ -122,11 +141,15 @@ export class Scheduler {
         });
         scored.sort((a, b) => b.score - a.score);
         const budget = Math.max(MIN_BUDGET, this.interval * BUDGET_SHARE[this.level]);
+        const others = scored.filter((s) => s.p < PRIORITY_POINTER).length;
+        let slots = Math.ceil(others * CLIENT_SHARE[this.level]);
         let spent = 0;
         const chosen: FrameClient[] = [];
         let deferred = 0;
         for (const s of scored) {
-            if (s.p >= PRIORITY_POINTER || spent + s.e.cost <= budget || chosen.length === 0) {
+            const top = s.p >= PRIORITY_POINTER;
+            if (top || (slots > 0 && spent + s.e.cost <= budget) || chosen.length === 0) {
+                if (!top) slots--;
                 chosen.push(s.c);
                 spent += s.e.cost;
                 s.e.deferred = 0;
@@ -143,6 +166,7 @@ export class Scheduler {
     private run = (now: number) => {
         this.rafId = 0;
         this.measure(now);
+        this.chained = false;
         const clients = this.pending;
         this.pending = [];
         this.queued.clear();
@@ -162,8 +186,12 @@ export class Scheduler {
             e.cost = e.cost * 0.7 + costs[i] * 0.3;
         }
 
-        if (this.pending.length && !this.rafId) this.rafId = requestAnimationFrame(this.run);
-        else if (!this.pending.length) this.last = 0;
+        if (active.length) this.tail = TAIL_FRAMES;
+        else if (this.tail > 0) this.tail--;
+        if ((this.pending.length || this.tail > 0) && !this.rafId) {
+            this.rafId = requestAnimationFrame(this.run);
+            this.chained = true;
+        }
     };
 }
 

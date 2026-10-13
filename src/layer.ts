@@ -34,6 +34,10 @@ export interface SurfaceFrame {
     // Inner edge of the border ring in local coordinates, compensated for the current tilt.
     // Empty when uniformBorder is set.
     borderInner: Point[];
+    // The inner edge in every case, computed on first use and cached with the geometry. For
+    // layers that repaint every frame: filling a ring is much cheaper on a canvas than the
+    // clipped stroke that uniformBorder allows.
+    ringInner(): Point[];
     // Current tilt of the surface, null when flat.
     tilt: Homography | null;
     // Null when no pointer is present or the surface does not track it.
@@ -49,6 +53,12 @@ export interface SurfaceLayer {
     readonly schema?: PropertySpec[];
     // Layers that follow the pointer get frames on pointer movement while visible.
     readonly tracksPointer?: boolean;
+    // Static layers draw without any pointer (fills, borders) and need the geometry at once.
+    // For the others the surface computes the geometry lazily, when the pointer comes within
+    // `reach` of the surface, when pressed or when tilted.
+    readonly static?: boolean;
+    // Distance in px from the surface beyond which the layer draws nothing.
+    reach?(width: number, height: number): number;
     // How far outside the shape the layer may paint, in px (glow, light radius).
     overflow?(frame: SurfaceFrame): number;
     attach(container: HTMLElement): void;

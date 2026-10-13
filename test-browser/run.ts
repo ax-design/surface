@@ -84,6 +84,9 @@ async function drive(d: Driver) {
                 await d.eval(`(window.__pointer = { x: ${x}, y: ${y} })`);
                 await d.move(x, y);
                 await d.down();
+            } else if (state.step === 'hover-pusher') {
+                const r = await rect('pusher');
+                await d.move(r.x + 10, r.y + 10);
             } else if (state.step === 'click-cb') {
                 const r = await rect('cb');
                 await d.move(r.x + r.w / 2, r.y + r.h / 2);

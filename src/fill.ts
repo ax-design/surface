@@ -31,11 +31,12 @@ export function createFillLayer(): SurfaceLayer {
     let ring: SVGPathElement;
     return {
         schema,
+        static: true,
         attach(container) {
             const id = `ax-fill-clip-${clipId++}`;
             svg = document.createElementNS(SVG_NS, 'svg');
             svg.setAttribute('aria-hidden', 'true');
-            svg.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;';
+            svg.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none;';
             const clip = document.createElementNS(SVG_NS, 'clipPath');
             clip.setAttribute('id', id);
             clipPath = document.createElementNS(SVG_NS, 'path');

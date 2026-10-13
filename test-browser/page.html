@@ -11,6 +11,10 @@
   .anim { transition: --ax-radius 300ms linear; }
   .anim.big { --ax-radius: 28px; }
   .wrap:has(input:checked) .c { --ax-radius: 25px; }
+  .pusher { height: 20px; background: #eee; }
+  .pusher:hover { height: 3000px; }
+  .shifted { position: absolute; top: 2200px; left: 0; }
+  body:has(.pusher:hover) .shifted { top: 300px; }
 </style></head>
 <body>
 <ax-surface id="a" layers="fill" class="a"></ax-surface>
@@ -19,6 +23,8 @@
 <ax-surface id="p" layers="fill" class="a" observe="precise"></ax-surface>
 <ax-surface id="m" layers="fill" class="a anim"></ax-surface>
 <div class="wrap"><input type="checkbox" id="cb"><ax-surface id="c" layers="fill" class="a c"></ax-surface></div>
+<div class="pusher" id="pusher"></div>
+<ax-surface id="s" layers="fill" class="a shifted"></ax-surface>
 <div class="far"><ax-surface id="far" layers="fill" class="a"></ax-surface></div>
 <script type="module" src="./page.ts"></script>
 </body></html>

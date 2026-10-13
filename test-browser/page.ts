@@ -138,6 +138,16 @@ async function run() {
     await ask('click-cb');
     check(':has(:checked) change re-renders', fillPath(c) !== cBefore);
 
+    // 5e. A surface moved into view by a :hover layout change (no scroll, no mutation).
+    const shifted = byId('s');
+    const tracked = () => services().triggers.has(shifted);
+    check('surface below the fold is not tracked', !tracked());
+    await ask('hover-pusher');
+    await new Promise((r) => setTimeout(r, 500));
+    await frames(4);
+    check('hover-driven layout shift makes it visible', tracked() && fillPath(shifted).length > 0);
+    await ask('leave');
+
     // 6. Idle: no animation frames at all.
     await frames(5);
     rafCalls = 0;

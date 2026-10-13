@@ -48,7 +48,7 @@ for (const scenario of ['sweep', 'toggle', 'mount']) {
         const head = `| ${browser} | ${cpu} | ${impl} | ${mode} | ${n} |`;
         if (scenario === 'sweep') {
             const s = (k: string) => fmt(median(g.map((r) => r.sweep?.[k])));
-            console.log(`${head} ${s('workP50')} | ${s('workP95')} | ${s('workMax')} | ${s('slowFrames')} | ${e('scriptMs')} | ${e('styleMs')} | ${e('layoutMs')} |`);
+            console.log(`${head} ${s('workP50')} | ${s('workP95')} | ${s('workMax')} | ${s('slowFrames')} | ${e('scriptMs')} | ${e('styleMs')} | ${e('layoutMs')} | task ${e('taskMs')} | lvl ${fmt(median(g.map((r) => r.scheduler?.maxLevel)))} |`);
         } else if (scenario === 'toggle') {
             console.log(`${head} ${fmt(median(g.map((r) => r.toggleFlushMs)))} | ${fmt(median(g.map((r) => r.toggleWorkMs)))} | ${e('scriptMs')} | ${e('styleMs')} | ${e('layoutMs')} |`);
         } else {

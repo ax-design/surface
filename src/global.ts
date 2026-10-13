@@ -1,5 +1,6 @@
 import { Scheduler } from './scheduler.js';
 import { StyleTriggers } from './triggers.js';
+import { VisibilityTracker } from './visibility.js';
 
 // Page-wide services. Several copies or versions of this package can be loaded into one page
 // (bundled twice, micro frontends), so the services live under a versioned global symbol and
@@ -71,18 +72,8 @@ function createServices(): Services {
         warnOnce('PointerEvent', 'pointer effects are disabled');
     }
 
-    const visibility = new Map<Element, (visible: boolean) => void>();
-    let intersection: IntersectionObserver | null = null;
-    if (typeof IntersectionObserver !== 'undefined') {
-        intersection = new IntersectionObserver((entries) => {
-            for (const entry of entries) {
-                const callback = visibility.get(entry.target);
-                if (callback) callback(entry.isIntersecting);
-            }
-        });
-    } else {
-        warnOnce('IntersectionObserver', 'every surface is treated as visible');
-    }
+    const visibility = new VisibilityTracker();
+    if (!visibility.available) warnOnce('IntersectionObserver', 'every surface is treated as visible');
 
     const sizes = new Map<Element, (width: number, height: number) => void>();
     let resize: ResizeObserver | null = null;
@@ -93,6 +84,8 @@ function createServices(): Services {
                 if (!callback) continue;
                 // borderBoxSize is Safari 15.4+; contentRect covers older engines. Surfaces have
                 // no padding or border of their own, so both give the same box.
+                // A size change can be a display toggle: re-check visibility.
+                visibility.requestRound();
                 const box = entry.borderBoxSize && entry.borderBoxSize[0];
                 if (box) callback(box.inlineSize, box.blockSize);
                 else callback(entry.contentRect.width, entry.contentRect.height);
@@ -109,13 +102,10 @@ function createServices(): Services {
         pointer,
         pointerListeners,
         observeVisibility(element, callback) {
-            visibility.set(element, callback);
-            if (intersection) intersection.observe(element);
-            else callback(true);
+            visibility.observe(element, callback);
         },
         unobserveVisibility(element) {
-            visibility.delete(element);
-            if (intersection) intersection.unobserve(element);
+            visibility.unobserve(element);
         },
         observeSize(element, callback) {
             sizes.set(element, callback);
