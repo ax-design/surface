@@ -12,7 +12,7 @@ function flatten<T>(lists: T[][]): T[] {
 const CORNERS = ['top-left', 'top-right', 'bottom-right', 'bottom-left'];
 const SIDES = ['top', 'right', 'bottom', 'left'];
 const CORNER_SHAPES = ['round', 'bevel', 'scoop', 'notch'];
-const EDGE_KINDS = ['flat', 'arc', 'rect', 'triangle', 'trapezoid'];
+const EDGE_KINDS = ['flat', 'arc', 'rect', 'triangle', 'trapezoid', 'cusp'];
 
 const lp = (name: string, initial: string): PropertySpec => ({ name, syntax: { type: 'length-percentage' }, initial, inherits: false, register: true });
 const len = (name: string, initial: string, inherits = false): PropertySpec => ({ name, syntax: { type: 'length' }, initial, inherits, register: true });

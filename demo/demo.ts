@@ -61,26 +61,28 @@ const PRESETS: Preset[] = [
     },
     { name: 'Clamshell', props: { '--ax-radius': '30%', '--ax-corner-shape': 'bevel' } },
     {
+        // A shallow cusp on every side with a wide tip: a wave.
         name: '4-sided cookie',
         props: Object.assign(
-            { '--ax-radius': '34%' },
+            { '--ax-radius': '30%' },
             ...['top', 'right', 'bottom', 'left'].map((s) => ({
-                [`--ax-edge-${s}-kind`]: 'arc',
-                [`--ax-edge-${s}-depth`]: '-7px',
-                [`--ax-edge-${s}-span`]: '44%',
-                [`--ax-edge-${s}-shoulder-radius`]: '6px',
+                [`--ax-edge-${s}-kind`]: 'cusp',
+                [`--ax-edge-${s}-depth`]: '-6px',
+                [`--ax-edge-${s}-span`]: '100%',
+                [`--ax-edge-${s}-tip-radius`]: '20px',
             }))
         ),
     },
     {
+        // Four round leaves: a deep cusp on every side.
         name: '4-leaf clover',
         props: Object.assign(
             { '--ax-radius': '30%' },
             ...['top', 'right', 'bottom', 'left'].map((s) => ({
-                [`--ax-edge-${s}-kind`]: 'arc',
-                [`--ax-edge-${s}-depth`]: '-16px',
-                [`--ax-edge-${s}-span`]: '40%',
-                [`--ax-edge-${s}-shoulder-radius`]: '10px',
+                [`--ax-edge-${s}-kind`]: 'cusp',
+                [`--ax-edge-${s}-depth`]: '-18px',
+                [`--ax-edge-${s}-span`]: '100%',
+                [`--ax-edge-${s}-tip-radius`]: '4px',
             }))
         ),
     },
@@ -112,16 +114,16 @@ const PRESETS: Preset[] = [
         },
     },
     {
-        // Two rounded rectangles on top of each other.
+        // Two pills on top of each other: the left and right sides pinch in the middle.
         name: 'Bun',
+        size: [100, 104],
         props: Object.assign(
-            { '--ax-radius': '28%' },
+            { '--ax-radius': '26%' },
             ...['left', 'right'].map((s) => ({
-                [`--ax-edge-${s}-kind`]: 'triangle',
-                [`--ax-edge-${s}-depth`]: '-12px',
-                [`--ax-edge-${s}-span`]: '44px',
-                [`--ax-edge-${s}-tip-radius`]: '4px',
-                [`--ax-edge-${s}-shoulder-radius`]: '10px',
+                [`--ax-edge-${s}-kind`]: 'cusp',
+                [`--ax-edge-${s}-depth`]: '-14px',
+                [`--ax-edge-${s}-span`]: '100%',
+                [`--ax-edge-${s}-tip-radius`]: '3px',
             }))
         ),
     },
@@ -200,7 +202,7 @@ const GROUPS: Group[] = [
         title: 'Edge',
         pick: { key: 'side', labels: SIDE_LABELS },
         controls: [
-            select('Kind', '--ax-edge-{side}-kind', ['flat', 'arc', 'rect', 'triangle', 'trapezoid'], 'flat'),
+            select('Kind', '--ax-edge-{side}-kind', ['flat', 'arc', 'rect', 'triangle', 'trapezoid', 'cusp'], 'flat'),
             range('Depth', '--ax-edge-{side}-depth', -80, 80, 1, 'px', '0px'),
             range('Span', '--ax-edge-{side}-span', 0, 100, 1, '%', '33%'),
             range('At', '--ax-edge-{side}-at', 0, 100, 1, '%', '50%'),

@@ -121,11 +121,11 @@ Shape properties are not inherited, set them on the `ax-surface` element itself.
 
 ### --ax-edge-{side}-kind
 
-**Type:** `flat | arc | rect | triangle | trapezoid`
+**Type:** `flat | arc | rect | triangle | trapezoid | cusp`
 
 **Default:** `flat`
 
-**Description:** The feature on one side. `arc` is a circular bump or notch, `rect`, `triangle` and `trapezoid` are straight ones.
+**Description:** The feature on one side. `arc` is a circular bump or notch, `rect`, `triangle` and `trapezoid` are straight ones. `cusp` is two arcs that leave the side smoothly at both ends of the span and meet in a point: inward it pinches the side (the waist of the Material bun, the gaps of the clover), outward it makes a pointed arch. It needs no shoulder radius, and `tip-radius` rounds the point.
 
 ### --ax-edge-{side}-depth
 
