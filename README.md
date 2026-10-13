@@ -285,4 +285,6 @@ customElements.define('my-card', MyCard);
 
 ## Browser support
 
+Several packages may each bundle their own copy of Surface (the `build/` files of `@ax-design/reveal-highlight` and `@ax-design/acrylic` do), and they share their layers and their scheduler on the page.
+
 Surface works in browsers released since 2018 (Chrome 70, Firefox 63, Safari 12). It needs `ResizeObserver`, `IntersectionObserver` and Pointer Events, and tells you in the console when one of them is missing so that you can load a polyfill.

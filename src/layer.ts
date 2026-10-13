@@ -69,11 +69,28 @@ export interface SurfaceLayer {
 
 export type LayerFactory = () => SurfaceLayer;
 
-const registry: { [name: string]: LayerFactory } = {};
+// Shared by every copy of this package on the page: a bundle may hold two copies (two
+// versions installed side by side), and a layer registered by one is used by surfaces of the
+// other.
+interface Registry {
+    factories: { [name: string]: LayerFactory };
+    // Surfaces waiting for a layer that was not registered yet, so the order in which packages
+    // register does not matter.
+    waiting: { [name: string]: Set<() => void> };
+}
 
-// Surfaces waiting for a layer that was not registered yet, so the order in which packages
-// register does not matter.
-const waiting: { [name: string]: Set<() => void> } = {};
+const REGISTRY_KEY = typeof Symbol === 'function' && Symbol.for ? Symbol.for('@ax-design/surface.layers.v1') : '@ax-design/surface.layers.v1';
+
+function shared(): Registry {
+    const r = (typeof globalThis !== 'undefined' ? globalThis : window) as unknown as Record<string, Registry | undefined>;
+    return r[REGISTRY_KEY as string] || (r[REGISTRY_KEY as string] = { factories: {}, waiting: {} });
+}
+
+const { factories: registry, waiting } = shared();
+
+export function hasLayer(name: string): boolean {
+    return !!registry[name];
+}
 
 export function registerLayer(name: string, factory: LayerFactory): void {
     if (registry[name]) throw new Error(`Surface layer "${name}" is already registered`);

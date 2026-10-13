@@ -21,6 +21,9 @@ const TILT_DURATION = 50;
 // features still grow the paint box to their bounds.
 const ANTIALIAS_MARGIN = 0;
 
+// Marks surface elements across copies of this package.
+const SURFACE = typeof Symbol === 'function' && Symbol.for ? Symbol.for('@ax-design/surface.element') : '@ax-design/surface.element';
+
 const STYLE = `
 :host { display: inline-block; position: relative; }
 :host([block]) { display: block; }
@@ -125,11 +128,18 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     // pointer; the pointer goes through the ancestor's inverse tilt and this offset instead,
     // measured while no ancestor was tilted.
     private parentSurface: AxSurface | null = null;
+    get [SURFACE as unknown as string](): boolean {
+        return true;
+    }
     private offsetInParent: Point | null = null;
 
+    // Whether this surface or one around it is tilted now.
+    isTilted(): boolean {
+        return !!this.homography || (!!this.parentSurface && this.parentSurface.isTilted());
+    }
+
     private ancestorTilted(): boolean {
-        for (let p = this.parentSurface; p; p = p.parentSurface) if (p.homography) return true;
-        return false;
+        return !!this.parentSurface && this.parentSurface.isTilted();
     }
 
     // A screen point in this surface's own plane, before its own tilt.
@@ -240,8 +250,9 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         this.connected = true;
         this.parentSurface = null;
         for (let n: Node | null = this.parentNode || null; n; n = n.parentNode || (n as ShadowRoot).host || null) {
-            if (n instanceof AxSurface) {
-                this.parentSurface = n;
+            // A brand rather than instanceof: the parent may come from another copy of this package.
+            if ((n as unknown as { [SURFACE]?: boolean })[SURFACE as unknown as string]) {
+                this.parentSurface = n as unknown as AxSurface;
                 break;
             }
         }

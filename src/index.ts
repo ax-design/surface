@@ -1,6 +1,6 @@
 import { AxSurface } from './element.js';
 import { createFillLayer } from './fill.js';
-import { registerLayer } from './layer.js';
+import { hasLayer, registerLayer } from './layer.js';
 import { services } from './global.js';
 
 export { AxSurface } from './element.js';
@@ -13,7 +13,7 @@ export function refreshAll(): void {
     services().triggers.refreshAll();
 }
 export type { PointerListener, PointerState, Services } from './global.js';
-export { createLayer, registerLayer } from './layer.js';
+export { createLayer, hasLayer, registerLayer } from './layer.js';
 export type { LayerFactory, LocalPointer, PaintBox, SurfaceFrame, SurfaceLayer } from './layer.js';
 export { Scheduler } from './scheduler.js';
 export type { FrameClient, Quality } from './scheduler.js';
@@ -26,6 +26,7 @@ let registered = false;
 export function register(): void {
     if (registered) return;
     registered = true;
-    registerLayer('fill', createFillLayer);
+    // Another copy of this package may have registered it already.
+    if (!hasLayer('fill')) registerLayer('fill', createFillLayer);
     if (!customElements.get(AxSurface.ElementName)) customElements.define(AxSurface.ElementName, AxSurface);
 }
