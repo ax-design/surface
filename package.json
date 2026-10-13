@@ -1,6 +1,6 @@
 {
   "name": "@ax-design/surface",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Web component that implements Surface of Axiom Design System: one shape, one tilt and one frame scheduler for every visual layer.",
   "keywords": [
     "web-components",
@@ -38,14 +38,14 @@
   "sideEffects": false,
   "scripts": {
     "bench": "bun bench/run.ts",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "test:browser": "bun test-browser/run.ts",
     "demo": "bun demo/serve.ts",
     "check": "tsc -p tsconfig.check.json",
     "prepublishOnly": "bun run build"
   },
   "dependencies": {
-    "@ax-design/shape": "^0.1.0",
+    "@ax-design/shape": "^0.2.0",
     "@ax-design/typed-om": "^0.1.0"
   },
   "devDependencies": {

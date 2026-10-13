@@ -333,3 +333,10 @@ Several packages may each bundle their own copy of Surface (the `build/` files o
 The copy that loads first defines `<ax-surface>`. Newer properties, such as the shared `--ax-edge-*` properties, only work when that copy knows them, so keep the copies on the page at the same version.
 
 Surface works in browsers released since 2018 (Chrome 70, Firefox 63, Safari 12). It needs `ResizeObserver`, `IntersectionObserver` and Pointer Events, and tells you in the console when one of them is missing so that you can load a polyfill.
+
+## Changes in 0.2
+
+* The `shadow` layer and the `--ax-shadow-*` properties are gone. Use the `elevation` layer of `@ax-design/elevation`, the Elevation shadow of the design system, which follows the shape the same way.
+* `--ax-edge-kind`, `--ax-edge-depth` and the other shared edge properties set every side at once, and `--ax-corner-shoulder-radius` rounds where bevel, scoop and notch corners meet the sides.
+* The `cusp` edge kind.
+* The tilt goes on each layer and on the content instead of on a common parent. Inside `position: sticky`, Firefox showed the wrong backdrop through acrylic while a surface was pressed. Layers with a `backdrop-filter` set `tiltsItself` and apply `frame.tiltTransform` themselves.
