@@ -77,6 +77,33 @@ async function run() {
         check('shadow fades out at the paint box edge', far < 8, `alpha=${far}`);
     }
 
+    // 1c. Shared edge properties apply to every side unless a side sets its own, and a
+    // transition of a shared property reaches the sides frame by frame.
+    {
+        const e = byId('e');
+        const sides = ['top', 'right', 'bottom', 'left'];
+        const read = () => sides.map((s) => `${e.debugState.values!.keyword(`--ax-edge-${s}-kind`)} ${e.debugState.values!.length(`--ax-edge-${s}-depth`)}`).join(', ');
+        e.classList.add('shared');
+        await frames(4);
+        check('shared edge properties reach every side', read() === 'arc -10, arc -10, arc -10, arc -10', read());
+        e.classList.add('top');
+        await frames(4);
+        check('a side property wins over the shared one', read() === 'arc 6, arc -10, arc -10, arc -10', read());
+        e.classList.remove('top');
+        e.classList.add('grow');
+        const depths = new Set<number>();
+        const start = performance.now();
+        while (performance.now() - start < 550) {
+            await frames(1);
+            depths.add(e.debugState.values!.length('--ax-edge-right-depth'));
+        }
+        const between = [...depths].filter((d) => d < -10.5 && d > -29.5).length;
+        check('a shared transition animates the sides', between >= 3 && depths.has(-30), `between=${between} values=${[...depths].map((d) => d.toFixed(1)).join(' ')}`);
+        e.className = '';
+        await frames(4);
+        check('removing the shared properties restores flat sides', read() === 'flat 0, flat 0, flat 0, flat 0', read());
+    }
+
     // 2. Ancestor class change is picked up.
     const before = fillPath(a);
     document.body.classList.add('theme');

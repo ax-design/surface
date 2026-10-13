@@ -119,6 +119,24 @@ Shape properties are not inherited, set them on the `ax-surface` element itself.
 
 **Description:** Moves one corner point into the shape, percentages are relative to the width (`x`) or the height (`y`). Shift the top left and bottom right corners on `x` and you get a parallelogram. Negative values move the corner out of the box.
 
+### --ax-edge-kind, --ax-edge-depth, --ax-edge-span, --ax-edge-at, --ax-edge-ratio, --ax-edge-tip-radius, --ax-edge-shoulder-radius
+
+**Description:** The feature of every side at once. Each one is the default of the side properties below with the same name, so `--ax-edge-depth` sets `--ax-edge-top-depth`, `--ax-edge-right-depth` and so on, unless a side sets its own. Types and defaults are the same as for the side properties. Transitions and animations of these properties move all four sides.
+
+```css
+.cookie {
+  --ax-radius: 30%;
+  --ax-edge-kind: cusp;
+  --ax-edge-depth: -6px;
+  --ax-edge-span: 100%;
+  --ax-edge-tip-radius: 20px;
+  /* The top side goes deeper than the others. */
+  --ax-edge-top-depth: -12px;
+}
+```
+
+Sides run clockwise (see `--ax-edge-{side}-at`), so one `--ax-edge-at` away from 50% turns every feature the same way around the shape: the result has rotational symmetry, not mirror symmetry.
+
 ### --ax-edge-{side}-kind
 
 **Type:** `flat | arc | rect | triangle | trapezoid | cusp`
@@ -319,5 +337,7 @@ customElements.define('my-card', MyCard);
 ## Browser support
 
 Several packages may each bundle their own copy of Surface (the `build/` files of `@ax-design/reveal-highlight` and `@ax-design/acrylic` do), and they share their layers and their scheduler on the page.
+
+The copy that loads first defines `<ax-surface>`. Newer properties, such as the shared `--ax-edge-*` properties, only work when that copy knows them, so keep the copies on the page at the same version.
 
 Surface works in browsers released since 2018 (Chrome 70, Firefox 63, Safari 12). It needs `ResizeObserver`, `IntersectionObserver` and Pointer Events, and tells you in the console when one of them is missing so that you can load a polyfill.

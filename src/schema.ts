@@ -27,6 +27,29 @@ const kw = (name: string, values: string[], initial: string, inherits = false): 
 
 const TILT_OFF = { property: '--ax-tilt-mode', values: ['off'] };
 
+const EDGE_PARAMS = ['kind', 'depth', 'span', 'at', 'ratio', 'tip-radius', 'shoulder-radius'];
+
+function edgeSpecs(prefix: string): PropertySpec[] {
+    return [
+        kw(`${prefix}kind`, EDGE_KINDS, 'flat'),
+        len(`${prefix}depth`, '0px'),
+        lp(`${prefix}span`, '33%'),
+        lp(`${prefix}at`, '50%'),
+        num(`${prefix}ratio`, '0.5'),
+        len(`${prefix}tip-radius`, '0px'),
+        len(`${prefix}shoulder-radius`, '0px'),
+    ];
+}
+
+// The feature of every side: --ax-edge-kind, --ax-edge-depth and so on. Registered but never
+// read: EDGE_FALLBACK_CSS gives each side's property the shared value unless the side sets its
+// own, and the surface reads the sides.
+export const EDGE_SHARED_SCHEMA: PropertySpec[] = edgeSpecs('--ax-edge-');
+
+// For the host's shadow stylesheet. :host rules lose to every author declaration on the element
+// (rules, inline styles, animations), so a side property set anywhere wins over the shared one.
+export const EDGE_FALLBACK_CSS = `:host { ${flatten(SIDES.map((s) => EDGE_PARAMS.map((p) => `--ax-edge-${s}-${p}: var(--ax-edge-${p});`))).join(' ')} }`;
+
 export const CORE_SCHEMA: PropertySpec[] = [
     lp('--ax-radius', '0px'),
     ...CORNERS.map((c) => lp(`--ax-${c}-radius`, '-1px')),
@@ -38,15 +61,7 @@ export const CORE_SCHEMA: PropertySpec[] = [
         SIDES.map((s) => {
             // A flat edge ignores its feature parameters; skip reading them.
             const flat = { property: `--ax-edge-${s}-kind`, values: ['flat'] };
-            return [
-                kw(`--ax-edge-${s}-kind`, EDGE_KINDS, 'flat'),
-                { ...len(`--ax-edge-${s}-depth`, '0px'), skipWhen: flat },
-                { ...lp(`--ax-edge-${s}-span`, '33%'), skipWhen: flat },
-                { ...lp(`--ax-edge-${s}-at`, '50%'), skipWhen: flat },
-                { ...num(`--ax-edge-${s}-ratio`, '0.5'), skipWhen: flat },
-                { ...len(`--ax-edge-${s}-tip-radius`, '0px'), skipWhen: flat },
-                { ...len(`--ax-edge-${s}-shoulder-radius`, '0px'), skipWhen: flat },
-            ];
+            return edgeSpecs(`--ax-edge-${s}-`).map((spec, i) => (i === 0 ? spec : { ...spec, skipWhen: flat }));
         })
     ),
     len('--ax-border-width', '1px'),

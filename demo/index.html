@@ -36,28 +36,28 @@
     --ax-fill-color: var(--accent); --ax-border-width: 0px;
     --ax-shadow-color: rgba(61, 90, 254, 0.35); --ax-shadow-blur: 24px; --ax-shadow-y: 10px;
     /* The sun frame: a triangle out of every side. */
-    --ax-edge-top-kind: triangle; --ax-edge-top-span: 60%; --ax-edge-top-tip-radius: 5px; --ax-edge-top-shoulder-radius: 4px; --ax-edge-right-kind: triangle; --ax-edge-right-span: 60%; --ax-edge-right-tip-radius: 5px; --ax-edge-right-shoulder-radius: 4px; --ax-edge-bottom-kind: triangle; --ax-edge-bottom-span: 60%; --ax-edge-bottom-tip-radius: 5px; --ax-edge-bottom-shoulder-radius: 4px; --ax-edge-left-kind: triangle; --ax-edge-left-span: 60%; --ax-edge-left-tip-radius: 5px; --ax-edge-left-shoulder-radius: 4px;
+    --ax-edge-kind: triangle; --ax-edge-span: 60%; --ax-edge-tip-radius: 5px; --ax-edge-shoulder-radius: 4px;
     animation: morph 8s cubic-bezier(0.6, 0, 0.3, 1) infinite, spin 16s linear infinite;
   }
   @keyframes morph {
     0%, 100% { --ax-radius: 50%; --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 0%; --ax-corner-bottom-left-shift-x: 0%;
-      --ax-edge-top-depth: 0px; --ax-edge-right-depth: 0px; --ax-edge-bottom-depth: 0px; --ax-edge-left-depth: 0px; }
+      --ax-edge-depth: 0px; }
     25% { --ax-radius: 28%; --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 0%; --ax-corner-bottom-left-shift-x: 0%;
-      --ax-edge-top-depth: 0px; --ax-edge-right-depth: 0px; --ax-edge-bottom-depth: 0px; --ax-edge-left-depth: 0px; }
+      --ax-edge-depth: 0px; }
     50% { --ax-radius: 14%; --ax-corner-top-left-shift-y: 50%; --ax-corner-top-right-shift-x: 50%; --ax-corner-bottom-right-shift-y: 50%; --ax-corner-bottom-left-shift-x: 50%;
-      --ax-edge-top-depth: 0px; --ax-edge-right-depth: 0px; --ax-edge-bottom-depth: 0px; --ax-edge-left-depth: 0px; }
+      --ax-edge-depth: 0px; }
     75% { --ax-radius: 4.0px; --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 0%; --ax-corner-bottom-left-shift-x: 0%;
-      --ax-edge-top-depth: 26px; --ax-edge-right-depth: 26px; --ax-edge-bottom-depth: 26px; --ax-edge-left-depth: 26px; }
+      --ax-edge-depth: 26px; }
   }
   @keyframes morph-small {
     0%, 100% { --ax-radius: 50%; --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 0%; --ax-corner-bottom-left-shift-x: 0%;
-      --ax-edge-top-depth: 0px; --ax-edge-right-depth: 0px; --ax-edge-bottom-depth: 0px; --ax-edge-left-depth: 0px; }
+      --ax-edge-depth: 0px; }
     25% { --ax-radius: 28%; --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 0%; --ax-corner-bottom-left-shift-x: 0%;
-      --ax-edge-top-depth: 0px; --ax-edge-right-depth: 0px; --ax-edge-bottom-depth: 0px; --ax-edge-left-depth: 0px; }
+      --ax-edge-depth: 0px; }
     50% { --ax-radius: 14%; --ax-corner-top-left-shift-y: 50%; --ax-corner-top-right-shift-x: 50%; --ax-corner-bottom-right-shift-y: 50%; --ax-corner-bottom-left-shift-x: 50%;
-      --ax-edge-top-depth: 0px; --ax-edge-right-depth: 0px; --ax-edge-bottom-depth: 0px; --ax-edge-left-depth: 0px; }
+      --ax-edge-depth: 0px; }
     75% { --ax-radius: 2.4px; --ax-corner-top-left-shift-y: 0%; --ax-corner-top-right-shift-x: 0%; --ax-corner-bottom-right-shift-y: 0%; --ax-corner-bottom-left-shift-x: 0%;
-      --ax-edge-top-depth: 15px; --ax-edge-right-depth: 15px; --ax-edge-bottom-depth: 15px; --ax-edge-left-depth: 15px; }
+      --ax-edge-depth: 15px; }
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -186,13 +186,13 @@
          --ax-radius: 4px; --ax-fill-color: #ffca28; --ax-border-width: 0px; --reveal-color: rgb(255, 255, 255); --reveal-opacity: 0.5;
          --ax-shadow-color: rgba(120, 70, 0, 0.45); --ax-shadow-blur: 14px; --ax-shadow-y: 5px;
          --ax-tilt-mode: absolute; --ax-tilt-depth: 3px; --ax-tilt-perspective: 300px;
-         --ax-edge-top-kind: triangle; --ax-edge-top-depth: 22px; --ax-edge-top-span: 60%; --ax-edge-top-tip-radius: 5px; --ax-edge-top-shoulder-radius: 4px; --ax-edge-right-kind: triangle; --ax-edge-right-depth: 22px; --ax-edge-right-span: 60%; --ax-edge-right-tip-radius: 5px; --ax-edge-right-shoulder-radius: 4px; --ax-edge-bottom-kind: triangle; --ax-edge-bottom-depth: 22px; --ax-edge-bottom-span: 60%; --ax-edge-bottom-tip-radius: 5px; --ax-edge-bottom-shoulder-radius: 4px; --ax-edge-left-kind: triangle; --ax-edge-left-depth: 22px; --ax-edge-left-span: 60%; --ax-edge-left-tip-radius: 5px; --ax-edge-left-shoulder-radius: 4px;
-         transition: --ax-edge-top-depth 0.3s, --ax-edge-right-depth 0.3s, --ax-edge-bottom-depth 0.3s, --ax-edge-left-depth 0.3s; }
-  .sun:hover { --ax-edge-top-depth: 28px; --ax-edge-right-depth: 28px; --ax-edge-bottom-depth: 28px; --ax-edge-left-depth: 28px; }
+         --ax-edge-kind: triangle; --ax-edge-depth: 22px; --ax-edge-span: 60%; --ax-edge-tip-radius: 5px; --ax-edge-shoulder-radius: 4px;
+         transition: --ax-edge-depth 0.3s; }
+  .sun:hover { --ax-edge-depth: 28px; }
   .sun .tile-text { padding: 0; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
 
   .loader { width: 64px; height: 64px; margin: 30px; --ax-fill-color: #ffffff; --ax-border-width: 0px;
-            --ax-edge-top-kind: triangle; --ax-edge-top-span: 60%; --ax-edge-top-tip-radius: 3px; --ax-edge-top-shoulder-radius: 2px; --ax-edge-right-kind: triangle; --ax-edge-right-span: 60%; --ax-edge-right-tip-radius: 3px; --ax-edge-right-shoulder-radius: 2px; --ax-edge-bottom-kind: triangle; --ax-edge-bottom-span: 60%; --ax-edge-bottom-tip-radius: 3px; --ax-edge-bottom-shoulder-radius: 2px; --ax-edge-left-kind: triangle; --ax-edge-left-span: 60%; --ax-edge-left-tip-radius: 3px; --ax-edge-left-shoulder-radius: 2px;
+            --ax-edge-kind: triangle; --ax-edge-span: 60%; --ax-edge-tip-radius: 3px; --ax-edge-shoulder-radius: 2px;
             animation: morph-small 2.4s cubic-bezier(0.6, 0, 0.3, 1) infinite, spin 2.4s linear infinite; }
   .loader-tile { display: flex; flex-direction: column; align-items: center; color: #fff; font-size: 12px; opacity: 0.85; }
 

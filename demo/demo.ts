@@ -63,28 +63,24 @@ const PRESETS: Preset[] = [
     {
         // A shallow cusp on every side with a wide tip: a wave.
         name: '4-sided cookie',
-        props: Object.assign(
-            { '--ax-radius': '30%' },
-            ...['top', 'right', 'bottom', 'left'].map((s) => ({
-                [`--ax-edge-${s}-kind`]: 'cusp',
-                [`--ax-edge-${s}-depth`]: '-6px',
-                [`--ax-edge-${s}-span`]: '100%',
-                [`--ax-edge-${s}-tip-radius`]: '20px',
-            }))
-        ),
+        props: {
+            '--ax-radius': '30%',
+            '--ax-edge-kind': 'cusp',
+            '--ax-edge-depth': '-6px',
+            '--ax-edge-span': '100%',
+            '--ax-edge-tip-radius': '20px',
+        },
     },
     {
         // Four round leaves: a deep cusp on every side.
         name: '4-leaf clover',
-        props: Object.assign(
-            { '--ax-radius': '30%' },
-            ...['top', 'right', 'bottom', 'left'].map((s) => ({
-                [`--ax-edge-${s}-kind`]: 'cusp',
-                [`--ax-edge-${s}-depth`]: '-18px',
-                [`--ax-edge-${s}-span`]: '100%',
-                [`--ax-edge-${s}-tip-radius`]: '4px',
-            }))
-        ),
+        props: {
+            '--ax-radius': '30%',
+            '--ax-edge-kind': 'cusp',
+            '--ax-edge-depth': '-18px',
+            '--ax-edge-span': '100%',
+            '--ax-edge-tip-radius': '4px',
+        },
     },
     {
         name: 'Ghost-ish',
@@ -131,16 +127,14 @@ const PRESETS: Preset[] = [
         // A square with a triangle out of every side; the triangles go out of the box.
         name: 'Sun',
         size: [64, 64],
-        props: Object.assign(
-            { '--ax-radius': '4px' },
-            ...['top', 'right', 'bottom', 'left'].map((s) => ({
-                [`--ax-edge-${s}-kind`]: 'triangle',
-                [`--ax-edge-${s}-depth`]: '24px',
-                [`--ax-edge-${s}-span`]: '60%',
-                [`--ax-edge-${s}-tip-radius`]: '5px',
-                [`--ax-edge-${s}-shoulder-radius`]: '4px',
-            }))
-        ),
+        props: {
+            '--ax-radius': '4px',
+            '--ax-edge-kind': 'triangle',
+            '--ax-edge-depth': '24px',
+            '--ax-edge-span': '60%',
+            '--ax-edge-tip-radius': '5px',
+            '--ax-edge-shoulder-radius': '4px',
+        },
     },
 ];
 
@@ -199,7 +193,19 @@ const GROUPS: Group[] = [
         ],
     },
     {
-        title: 'Edge',
+        title: 'Edges',
+        controls: [
+            select('Kind', '--ax-edge-kind', ['flat', 'arc', 'rect', 'triangle', 'trapezoid', 'cusp'], 'flat'),
+            range('Depth', '--ax-edge-depth', -80, 80, 1, 'px', '0px'),
+            range('Span', '--ax-edge-span', 0, 100, 1, '%', '33%'),
+            range('At', '--ax-edge-at', 0, 100, 1, '%', '50%'),
+            range('Ratio', '--ax-edge-ratio', 0, 1, 0.05, '', '0.5'),
+            range('Tip radius', '--ax-edge-tip-radius', 0, 40, 1, 'px', '0px'),
+            range('Shoulder', '--ax-edge-shoulder-radius', 0, 40, 1, 'px', '0px'),
+        ],
+    },
+    {
+        title: 'One edge',
         pick: { key: 'side', labels: SIDE_LABELS },
         controls: [
             select('Kind', '--ax-edge-{side}-kind', ['flat', 'arc', 'rect', 'triangle', 'trapezoid', 'cusp'], 'flat'),
@@ -295,7 +301,12 @@ for (const g of GROUPS) {
 
 const resolveProp = (g: Group, c: Control) =>
     g.pick ? c.prop.replace(`{${g.pick.key}}`, (g.pick.key === 'corner' ? CORNERS : SIDES)[state.picked[g.pick.key]]) : c.prop;
-const current = (prop: string) => (prop in state.props ? state.props[prop] : defaults[prop]);
+// A side that sets nothing shows the shared edge value it follows.
+const current = (prop: string): string => {
+    if (prop in state.props) return state.props[prop];
+    const side = /^--ax-edge-(top|right|bottom|left)-(.+)$/.exec(prop);
+    return side ? current(`--ax-edge-${side[2]}`) : defaults[prop];
+};
 
 function parseColor(value: string): { hex: string; alpha: number } {
     const m = value.match(/rgba?\(([^)]+)\)/);

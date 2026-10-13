@@ -1,6 +1,6 @@
 import { apply, borderInner, invert, resolve, tiltHomography } from '@ax-design/shape';
 import type { Homography, ResolvedShape, TiltParams } from '@ax-design/shape';
-import { StyleBinding, StyleSchema } from '@ax-design/typed-om';
+import { StyleBinding, StyleSchema, registerProperties } from '@ax-design/typed-om';
 import type { LengthPercentage, PropertySpec, PropertyValue } from '@ax-design/typed-om';
 import type { Quad, ShapeSpec } from '@ax-design/shape';
 import type { TriggerTarget } from './triggers.js';
@@ -10,7 +10,7 @@ import { createLayer, whenLayerRegistered } from './layer.js';
 import type { LocalPointer, PaintBox, SurfaceFrame, SurfaceLayer } from './layer.js';
 import { PRIORITY_IDLE, PRIORITY_POINTER, PRIORITY_PRESSED } from './scheduler.js';
 import type { FrameClient, Quality } from './scheduler.js';
-import { CORE_SCHEMA, Values, borderWidthsFrom, shapeSpecFrom } from './schema.js';
+import { CORE_SCHEMA, EDGE_FALLBACK_CSS, EDGE_SHARED_SCHEMA, Values, borderWidthsFrom, shapeSpecFrom } from './schema.js';
 import { isResting, lerpTilt, restingTilt, tiltFor, tiltTransform } from './tilt.js';
 import type { Point, TiltParams as Tilt } from '@ax-design/shape';
 
@@ -46,12 +46,17 @@ const STYLE = `
 `;
 
 const template = typeof document !== 'undefined' ? document.createElement('template') : null;
-if (template) template.innerHTML = `<style>${STYLE}</style><div class="tilt"><div class="layers"></div><div class="content"><slot></slot></div></div>`;
+if (template) template.innerHTML = `<style>${STYLE}${EDGE_FALLBACK_CSS}</style><div class="tilt"><div class="layers"></div><div class="content"><slot></slot></div></div>`;
 
 // Schemas are compiled once per element class and layer combination, and shared by every
 // surface using it.
 const schemas: { [key: string]: StyleSchema } = {};
+let sharedRegistered = false;
 function schemaFor(key: string, extra: PropertySpec[], layers: SurfaceLayer[]): StyleSchema {
+    if (!sharedRegistered) {
+        sharedRegistered = true;
+        registerProperties(EDGE_SHARED_SCHEMA);
+    }
     if (!schemas[key]) {
         const seen = new Set<string>();
         const specs = CORE_SCHEMA.slice();

@@ -28,6 +28,12 @@
 </ax-surface>
 <ax-surface id="sh" layers="shadow fill" style="position: absolute; left: 60px; top: 470px; width: 100px; height: 50px; --ax-radius: 10px; --ax-fill-color: rgba(255, 255, 255, 0.5); --ax-shadow-blur: 10px; --ax-shadow-x: 0px; --ax-shadow-y: 6px; --ax-shadow-color: rgb(0, 0, 0);"></ax-surface>
 <div class="pusher" id="pusher"></div>
+<ax-surface id="e" layers="fill" style="position: absolute; left: 200px; top: 470px; width: 120px; height: 80px;"></ax-surface>
+<style>
+  #e.shared { --ax-edge-kind: arc; --ax-edge-depth: -10px; --ax-edge-span: 40%; }
+  #e.shared.top { --ax-edge-top-depth: 6px; }
+  #e.shared.grow { --ax-edge-depth: -30px; transition: --ax-edge-depth 400ms linear; }
+</style>
 <ax-surface id="s" layers="fill" class="a shifted"></ax-surface>
 <div class="far"><ax-surface id="far" layers="fill" class="a"></ax-surface></div>
 <script type="module" src="./page.ts"></script>
