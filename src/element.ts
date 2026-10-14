@@ -559,6 +559,9 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
                 this.tiltFrom = this.tiltNow || rest;
                 this.tiltTo = target;
                 this.tiltStart = now;
+                // Gecko: a transform arriving over frames after a flat stretch draws the
+                // backdrop of acrylic clear for each of those frames — arrive at once.
+                if (gecko && !this.tiltNow) this.tiltFrom = target;
             }
             if (this.released) this.pressPoint = null;
         }
@@ -662,8 +665,15 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             }
         }
         if (changed.style || changed.size || this.clipKey === null) this.writeClip();
+        // Gecko: a surface that can tilt never drops the transform of its containers. Dropping
+        // it destroys their 3D layer and the next tilt makes a new one, and the frames of that
+        // re-creation draw the backdrop of acrylic clear — the flash at the end of a press.
+        // translateZ(0) keeps the layer alive and flat without the containing block a
+        // perspective() would make, which turns the blur off everywhere. Layers that tilt
+        // themselves get the flat form as always.
         const transform = this.tiltNow ? tiltTransform(this.tiltNow) : '';
-        if (changed.tilt || changed.style || changed.size) this.writeTilt(transform);
+        const containerTransform = transform || (gecko && this.canTilt(v) ? 'translateZ(0)' : '');
+        if (changed.tilt || changed.style || changed.size) this.writeTilt(containerTransform);
 
         const frame: SurfaceFrame = {
             width: this.width,
