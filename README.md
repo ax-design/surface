@@ -7,7 +7,7 @@
 <h1 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ax-design/surface/master/docs/logo-r.png">
-    <img src="https://raw.githubusercontent.com/ax-design/surface/master/docs/logo.png" alt="Ax Acrylic">
+    <img src="https://raw.githubusercontent.com/ax-design/surface/master/docs/logo.png" alt="Ax Surface">
   </picture>
 </h1>
 
