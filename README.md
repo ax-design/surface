@@ -271,6 +271,28 @@ Sides run clockwise (see `--ax-edge-{side}-at`), so one `--ax-edge-at` away from
 
 **Description:** `inverted` lifts the pressed side instead of sinking it.
 
+## Schema groups
+
+The properties above come in three groups, and a component that needs only one of them does not
+have to take the rest. Each group is exported as a bundle with the parts that have to be
+installed together:
+
+```javascript
+import { SHAPE } from '@ax-design/surface';
+// or, without pulling the element, its scheduler and its layers into the build:
+import { SHAPE } from '@ax-design/surface/schema';
+```
+
+* `SHAPE.read` - the shape properties, read on every paint.
+* `SHAPE.shared` - the general properties (`--ax-edge-span` and friends) that set every side or
+  corner at once. They are registered but never read: `SHAPE.fallbackCss` is what passes a
+  general value on to each side, so it belongs in the consumer's shadow root.
+* `BORDER.read`, `TILT.read` - the border and the tilt properties. They have no shared
+  counterpart.
+
+`CORE_SCHEMA` is the three `read` lists in that order, unchanged, for consumers and layers that
+want the whole contract.
+
 ### --ax-fill-color
 
 **Type:** `<color>`

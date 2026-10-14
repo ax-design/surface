@@ -54,7 +54,8 @@ const fallbacks = [
 ];
 export const SHARED_FALLBACK_CSS = `:host { ${fallbacks.join(' ')} }`;
 
-export const CORE_SCHEMA: PropertySpec[] = [
+// Shape: the outline every layer draws, from the corners to the edge features.
+export const SHAPE_SCHEMA: PropertySpec[] = [
     lp('--ax-radius', '0px'),
     ...CORNERS.map((c) => lp(`--ax-${c}-radius`, '-1px')),
     kw('--ax-corner-shape', CORNER_SHAPES, 'round'),
@@ -69,9 +70,16 @@ export const CORE_SCHEMA: PropertySpec[] = [
             return edgeSpecs(`--ax-edge-${s}-`).map((spec, i) => (i === 0 ? spec : { ...spec, skipWhen: flat }));
         })
     ),
+];
+
+// Border: the ring the inner edge is computed from.
+export const BORDER_SCHEMA: PropertySpec[] = [
     len('--ax-border-width', '1px'),
     ...SIDES.map((s) => len(`--ax-border-${s}-width`, '-1px')),
-    // Tilt: appearance, inherited like the legacy --pressure-* properties.
+];
+
+// Tilt: appearance, inherited like the legacy --pressure-* properties.
+export const TILT_SCHEMA: PropertySpec[] = [
     kw('--ax-tilt-mode', ['off', 'absolute', 'relative'], 'off', true),
     { ...len('--ax-tilt-depth', '1px', true), skipWhen: TILT_OFF },
     { ...num('--ax-tilt-factor', '2', true), skipWhen: TILT_OFF },
@@ -79,6 +87,24 @@ export const CORE_SCHEMA: PropertySpec[] = [
     { ...len('--ax-tilt-zoom', '0.8px', true), skipWhen: TILT_OFF },
     { ...kw('--ax-tilt-direction', ['normal', 'inverted'], 'normal', true), skipWhen: TILT_OFF },
 ];
+
+// The three groups in the order the reader expects. The split keeps every name, syntax and
+// initial value exactly as before, so a merged CORE_SCHEMA equals the unsplit one.
+export const CORE_SCHEMA: PropertySpec[] = [...SHAPE_SCHEMA, ...BORDER_SCHEMA, ...TILT_SCHEMA];
+
+// One group of the contract, with everything a consumer needs to adopt it alone. "read" goes
+// into the consumer's schema; "shared" must be registered so the general properties resolve;
+// "fallbackCss" belongs in the consumer's shadow root so a general property reaches each side
+// or corner.
+export interface SchemaBundle {
+    read: PropertySpec[];
+    shared?: PropertySpec[];
+    fallbackCss?: string;
+}
+
+export const SHAPE: SchemaBundle = { read: SHAPE_SCHEMA, shared: SHARED_SCHEMA, fallbackCss: SHARED_FALLBACK_CSS };
+export const BORDER: SchemaBundle = { read: BORDER_SCHEMA };
+export const TILT: SchemaBundle = { read: TILT_SCHEMA };
 
 // Reads values out of a binding by property name.
 export class Values {

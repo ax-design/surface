@@ -18,6 +18,8 @@ export type { LayerFactory, LocalPointer, PaintBox, SurfaceFrame, SurfaceLayer }
 export { Scheduler } from './scheduler.js';
 export type { FrameClient, Quality } from './scheduler.js';
 export { CORE_SCHEMA, Values, borderWidthsFrom, shapeSpecFrom } from './schema.js';
+export { BORDER, SHAPE, TILT, BORDER_SCHEMA, SHAPE_SCHEMA, TILT_SCHEMA, SHARED_SCHEMA, SHARED_FALLBACK_CSS } from './schema.js';
+export type { SchemaBundle } from './schema.js';
 export { createFillLayer } from './fill.js';
 
 let registered = false;
