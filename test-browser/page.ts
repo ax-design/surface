@@ -180,7 +180,14 @@ async function run() {
     check('release() returns the surface flat while pressed', content.style.transform === '', content.style.transform);
     await ask('release');
     await frames(8);
-    check('released surface returns flat', content.style.transform === '' && fillBox.style.transform === '' && getComputedStyle(fillBox).display === 'contents', content.style.transform);
+    // A surface that can tilt keeps the boxes of its layer containers: one made or dropped while
+    // it tilts turns acrylic next to it clear in Firefox.
+    check('released surface returns flat and keeps its boxes', content.style.transform === '' && fillBox.style.transform === '' && getComputedStyle(fillBox).display === 'block', `${content.style.transform} ${getComputedStyle(fillBox).display}`);
+    t.style.setProperty('--ax-tilt-mode', 'off');
+    await frames(8);
+    check('a surface that does not tilt has no container boxes', getComputedStyle(fillBox).display === 'contents', getComputedStyle(fillBox).display);
+    t.style.removeProperty('--ax-tilt-mode');
+    await frames(8);
 
     // 4b. With a paint box larger than the element (a halo), the layer containers cover the
     // paint box and still turn around the element's center: the drawing lands where the tilt

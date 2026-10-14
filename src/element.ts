@@ -44,7 +44,8 @@ const STYLE = `
 /* Only three positioned boxes per surface (host, layer drawing, content), like the legacy
    <ax-reveal>: every positioned box is a paint chunk the compositor walks on every frame a
    canvas changes. Layer containers take no box unless outward features grow the paint area
-   beyond the layout box, or while they are tilted.
+   beyond the layout box, or the surface tilts (a box made while tilting turns acrylic clear in
+   Firefox, so a surface that can tilt keeps them).
    The tilt goes on each layer container and on the content, not on a common parent: inside
    position: sticky, Firefox renders a backdrop-filter under an animated 3D transform of an
    ancestor with the wrong backdrop. Layers that use one (acrylic) tilt their own elements. */
@@ -697,13 +698,18 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         const p = this.paint;
         const boxed = this.paintKey !== '';
         const origin = boxed ? `${this.width / 2 - p.left}px ${this.height / 2 - p.top}px` : '';
-        const key = transform && `${transform}|${origin}|${this.containers.length}`;
+        // A surface that can tilt keeps the boxes of its layer containers, pressed or not: a box
+        // made or dropped while the surface tilts turns the backdrop-filter of acrylic next to it
+        // clear in Firefox.
+        const mode = this.values ? this.values.keyword('--ax-tilt-mode') : 'off';
+        const tilts = mode === 'absolute' || mode === 'relative';
+        const key = `${transform}|${origin}|${this.containers.length}|${tilts}`;
         if (key === this.tiltKey) return;
         this.tiltKey = key;
         this.contentBox.style.transform = transform;
         this.containers.forEach((container, i) => {
             if (this.layers[i].tiltsItself) return;
-            container.classList.toggle('tilted', !!transform);
+            container.classList.toggle('tilted', tilts || !!transform);
             const s = container.style;
             s.transform = transform;
             s.transformOrigin = transform ? origin : '';

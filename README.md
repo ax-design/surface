@@ -355,4 +355,4 @@ Surface works in browsers released since 2018 (Chrome 70, Firefox 63, Safari 12)
 * The `cusp` edge kind.
 * The tilt goes on each layer and on the content instead of on a common parent. Inside `position: sticky`, Firefox showed the wrong backdrop through acrylic while a surface was pressed. Layers with a `backdrop-filter` set `tiltsItself` and apply `frame.tiltTransform` themselves.
 * 0.2.1: `release()` ends a press before the pointer is up, for containers that take the gesture over (a tile drag).
-* 0.2.2: the `clip` attribute cuts the content to the shape. Pressing or dragging on a surface no longer selects its text or drags its links and images.
+* 0.2.2: the `clip` attribute cuts the content to the shape. Pressing or dragging on a surface no longer selects its text or drags its links and images. A surface that can tilt keeps the boxes of its layer containers while it is not pressed too: in Firefox, acrylic on a surface used to turn clear at times while it was pressed, when those boxes were made.
