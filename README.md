@@ -4,6 +4,17 @@
   Web component that implements Surface of Axiom Design System.
 </p>
 
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ax-design/surface/master/docs/logo-r.png">
+    <img src="https://raw.githubusercontent.com/ax-design/surface/master/docs/logo.png" alt="Ax Acrylic">
+  </picture>
+</h1>
+
+<p align="center">
+  Web component that Combine All Layers of Axiom Design System.
+</p>
+
 <p align="center">
   <a href="https://www.npmjs.com/package/@ax-design/surface"><img src="https://img.shields.io/npm/v/@ax-design/surface.svg" alt="npm version"></a>
   <a href="https://github.com/ax-design/surface/actions/workflows/ci.yml"><img src="https://github.com/ax-design/surface/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
