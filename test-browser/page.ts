@@ -309,6 +309,25 @@ async function run() {
     await frames(5);
     check('reconnected surface renders again', fillPath(a) === before && observing(a));
 
+    // 8. No text selection and no native drag under a surface, unless asked for.
+    const link = document.createElement('a');
+    link.href = '#';
+    link.textContent = 'link';
+    const own = document.createElement('span');
+    own.draggable = true;
+    a.append(link, own);
+    const drag = (el: Element) => {
+        const e = new Event('dragstart', { bubbles: true, cancelable: true });
+        el.dispatchEvent(e);
+        return e.defaultPrevented;
+    };
+    check('a link in a surface is not dragged', drag(link));
+    check('draggable="true" in a surface still drags', !drag(own));
+    const select = getComputedStyle(a).userSelect || (getComputedStyle(a) as unknown as Record<string, string>).webkitUserSelect;
+    check('a surface selects no text', select === 'none', select);
+    link.remove();
+    own.remove();
+
     return { userAgent: navigator.userAgent, checks };
 }
 

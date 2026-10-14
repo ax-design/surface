@@ -24,8 +24,18 @@ const ANTIALIAS_MARGIN = 0;
 // Marks surface elements across copies of this package.
 const SURFACE = typeof Symbol === 'function' && Symbol.for ? Symbol.for('@ax-design/surface.element') : '@ax-design/surface.element';
 
+// Links and images inside a surface are not dragged out of it by the browser; an element that
+// asks for it with draggable="true" still is.
+function onDragStart(event: DragEvent) {
+    const target = event.target as Element | null;
+    if (target && target.closest && target.closest('[draggable="true"]')) return;
+    event.preventDefault();
+}
+
 const STYLE = `
-:host { display: inline-block; position: relative; }
+/* A surface is a control: pressing or dragging on it neither selects its text nor opens the
+   long-press callout of iOS. :host rules lose to any style of the page. */
+:host { display: inline-block; position: relative; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 :host([block]) { display: block; }
 :host([flex]) { display: flex; }
 :host([inline-flex]) { display: inline-flex; }
@@ -295,6 +305,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         });
         s.observeVisibility(this, (visible) => this.setVisible(visible));
         this.addEventListener('pointerdown', this.onPointerDown);
+        this.addEventListener('dragstart', onDragStart);
     }
 
     disconnectedCallback() {
@@ -305,6 +316,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         s.pointerListeners.delete(this);
         s.scheduler.cancel(this);
         this.removeEventListener('pointerdown', this.onPointerDown);
+        this.removeEventListener('dragstart', onDragStart);
         this.stopObserving();
         this.pendingLayers.forEach((cancel) => cancel());
         this.pendingLayers = [];

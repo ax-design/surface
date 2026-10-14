@@ -69,6 +69,10 @@ Add the `clip` attribute and the content of the surface is cut to its shape, so 
 </ax-surface>
 ```
 
+### Selecting and dragging
+
+A surface is a control, so pressing or dragging on it does not select its text, and the browser does not drag the links and images in it away (nor show the long-press callout of iOS). Give an element in it `draggable="true"` to drag it with the drag and drop of the browser; set `user-select: text` on the surface to make its text selectable again.
+
 ### Watching style changes
 
 A surface notices style changes caused by classes, attributes, `:hover`, `:active`, `:focus`, form states, media queries, stylesheets and your own transitions. If a style of yours depends on something else (for example an element inside another component's shadow root), use `observe="precise"`:
@@ -351,4 +355,4 @@ Surface works in browsers released since 2018 (Chrome 70, Firefox 63, Safari 12)
 * The `cusp` edge kind.
 * The tilt goes on each layer and on the content instead of on a common parent. Inside `position: sticky`, Firefox showed the wrong backdrop through acrylic while a surface was pressed. Layers with a `backdrop-filter` set `tiltsItself` and apply `frame.tiltTransform` themselves.
 * 0.2.1: `release()` ends a press before the pointer is up, for containers that take the gesture over (a tile drag).
-* 0.2.2: the `clip` attribute cuts the content to the shape.
+* 0.2.2: the `clip` attribute cuts the content to the shape. Pressing or dragging on a surface no longer selects its text or drags its links and images.
