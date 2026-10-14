@@ -1,4 +1,4 @@
-import { apply, borderInner, invert, resolve, tiltHomography } from '@ax-design/shape';
+import { apply, borderInner, invert, resolve, tiltHomography, toSvgPath } from '@ax-design/shape';
 import type { Homography, ResolvedShape, TiltParams } from '@ax-design/shape';
 import { StyleBinding, StyleSchema, registerProperties } from '@ax-design/typed-om';
 import type { LengthPercentage, PropertySpec, PropertyValue } from '@ax-design/typed-om';
@@ -88,7 +88,7 @@ function sameValue(a: PropertyValue, b: PropertyValue): boolean {
 export class AxSurface extends ElementBase implements FrameClient, PointerListener, TriggerTarget {
     static readonly ElementName: string = 'ax-surface';
     static get observedAttributes() {
-        return ['layers', 'observe'];
+        return ['layers', 'observe', 'clip'];
     }
 
     private root: ShadowRoot;
@@ -188,7 +188,8 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     };
 
     private needsGeometry(): boolean {
-        if (this.pressPoint || this.tiltNow || this.tiltTo) return true;
+        // The clip is drawn all the time, like a static layer.
+        if (this.pressPoint || this.tiltNow || this.tiltTo || this.hasAttribute('clip')) return true;
         let reach = -1;
         for (const layer of this.layers) {
             if (layer.static) return true;
@@ -319,7 +320,11 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     attributeChangedCallback(name: string) {
         if (!this.connected) return;
         if (name === 'layers') this.buildLayers();
-        else if (this.visible) {
+        else if (name === 'clip') {
+            this.clipKey = null;
+            this.styleDirty = true;
+            this.requestFrame();
+        } else if (this.visible) {
             this.stopObserving();
             this.startObserving();
         }
@@ -623,6 +628,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
                 s.height = isDefault ? '' : `${p.height}px`;
             }
         }
+        if (changed.style || changed.size || this.clipKey === null) this.writeClip();
         const transform = this.tiltNow ? tiltTransform(this.tiltNow) : '';
         if (changed.tilt || changed.style || changed.size) this.writeTilt(transform);
 
@@ -659,6 +665,17 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         this.sizeDirty = this.pointerDirty = this.tiltDirty = false;
         this.tiltChanged = false;
         if (again) this.requestFrame();
+    }
+
+    // clip: the content is cut to the shape (an image or a video in a tile). It is cut on the
+    // content box, before its tilt, so the cut tilts with it.
+    private clipKey: string | null = null;
+    private writeClip() {
+        const d = this.hasAttribute('clip') && this.shape ? `path("${toSvgPath(this.shape.outline)}")` : '';
+        if (d === this.clipKey) return;
+        this.clipKey = d;
+        this.contentBox.style.setProperty('-webkit-clip-path', d);
+        this.contentBox.style.setProperty('clip-path', d);
     }
 
     // Tilts the content and every layer container, except those of layers that tilt themselves.

@@ -110,6 +110,19 @@ async function run() {
         await frames(4);
     }
 
+    // 1d. clip cuts the content to the shape: a corner outside the rounding hits nothing of it.
+    {
+        const cl = byId('cl');
+        await frames(4);
+        const r = cl.getBoundingClientRect();
+        const hit = (x: number, y: number) => document.elementFromPoint(r.left + x, r.top + y);
+        const content = byId('clc');
+        check('clip cuts the content to the shape', hit(2, 2) !== content && hit(50, 30) === content, `${hit(2, 2) && (hit(2, 2) as Element).id}`);
+        cl.removeAttribute('clip');
+        await frames(4);
+        check('without clip the content is whole', hit(2, 2) === content);
+    }
+
     // 2. Ancestor class change is picked up.
     const before = fillPath(a);
     document.body.classList.add('theme');

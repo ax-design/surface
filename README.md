@@ -59,6 +59,16 @@ Want to try the properties? Run `bun install && bun run demo` in this repository
 
 Surfaces only work while they are visible, read their styles only after something changed, and lower the frame rate of far and small surfaces when the page starts dropping frames.
 
+### Images and other content in a shape
+
+Add the `clip` attribute and the content of the surface is cut to its shape, so an image or a video fills a tile of any shape. The cut follows the shape when it changes, and tilts with the content when the surface is pressed:
+
+```html
+<ax-surface clip layers="reveal" style="--ax-radius: 24px">
+  <img src="cover.jpg" alt="" style="display: block; width: 100%; height: 100%; object-fit: cover">
+</ax-surface>
+```
+
 ### Watching style changes
 
 A surface notices style changes caused by classes, attributes, `:hover`, `:active`, `:focus`, form states, media queries, stylesheets and your own transitions. If a style of yours depends on something else (for example an element inside another component's shadow root), use `observe="precise"`:
@@ -341,3 +351,4 @@ Surface works in browsers released since 2018 (Chrome 70, Firefox 63, Safari 12)
 * The `cusp` edge kind.
 * The tilt goes on each layer and on the content instead of on a common parent. Inside `position: sticky`, Firefox showed the wrong backdrop through acrylic while a surface was pressed. Layers with a `backdrop-filter` set `tiltsItself` and apply `frame.tiltTransform` themselves.
 * 0.2.1: `release()` ends a press before the pointer is up, for containers that take the gesture over (a tile drag).
+* 0.2.2: the `clip` attribute cuts the content to the shape.
