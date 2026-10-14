@@ -662,8 +662,15 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             }
         }
         if (changed.style || changed.size || this.clipKey === null) this.writeClip();
+        // Gecko: a surface that can tilt never drops the transform of its containers. Dropping
+        // it destroys their 3D layer and the next tilt makes a new one, and the frames of that
+        // re-creation draw the backdrop of acrylic clear — the flash seen at the end of a
+        // press. The identity perspective keeps the layer alive and flat, like the layer box
+        // is kept for it. Layers that tilt themselves get the flat form as always: an identity
+        // transform on a backdrop-filter element breaks the blur just the same.
         const transform = this.tiltNow ? tiltTransform(this.tiltNow) : '';
-        if (changed.tilt || changed.style || changed.size) this.writeTilt(transform);
+        const containerTransform = transform || (gecko && this.canTilt(v) ? `perspective(${v.length('--ax-tilt-perspective')}px)` : '');
+        if (changed.tilt || changed.style || changed.size) this.writeTilt(containerTransform);
 
         const frame: SurfaceFrame = {
             width: this.width,
