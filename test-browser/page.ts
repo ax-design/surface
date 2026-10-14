@@ -32,6 +32,7 @@ const ask = async (step: string) => {
     await frames(3);
 };
 
+const geckoTest = CSS.supports('-moz-appearance', 'none');
 const byId = (id: string) => document.getElementById(id) as AxSurface;
 const fillPath = (el: AxSurface) => el.shadowRoot!.querySelector('.layer-fill path')!.getAttribute('d') || '';
 // Default surfaces register with the shared triggers; precise ones carry a detector.
@@ -157,7 +158,8 @@ async function run() {
     const content = t.shadowRoot!.querySelector('.content') as HTMLElement;
     const fillBox = t.shadowRoot!.querySelector('.layer-fill') as HTMLElement;
     const tiltBox = t.shadowRoot!.querySelector('.tilt') as HTMLElement;
-    check('pressed surface tilts', content.style.transform.indexOf('rotateX') >= 0, content.style.transform);
+    // Gecko tilts with the closest 2D transform: a 3D one anywhere turns acrylic clear.
+    check('pressed surface tilts', content.style.transform.indexOf(geckoTest ? 'matrix(' : 'rotateX') >= 0, content.style.transform);
     check('layer containers tilt with the content', fillBox.style.transform === content.style.transform && getComputedStyle(fillBox).display === 'block', fillBox.style.transform);
     check('no common tilted parent', getComputedStyle(tiltBox).transform === 'none', getComputedStyle(tiltBox).transform);
     // Pointer mapping under tilt: projecting the local point lands on the pointer.
@@ -208,13 +210,24 @@ async function run() {
             const host = sh.getBoundingClientRect();
             const got = fill.getBoundingClientRect();
             const p = state.paint;
+            // Gecko: the 2D transform written, around the element center.
+            const m = /matrix\(([^)]*)\)/.exec(fill.style.transform);
+            const [ma, mb, mc, md, me, mf] = m ? m[1].split(',').map(Number) : [1, 0, 0, 1, 0, 0];
+            const cx = host.width / 2;
+            const cy = host.height / 2;
             const H = tiltHomography(state.tilt);
+            const map = (q: { x: number; y: number }) => {
+                if (!geckoTest) return apply(H, q);
+                const x = q.x - cx;
+                const y = q.y - cy;
+                return { x: ma * x + mc * y + me + cx, y: mb * x + md * y + mf + cy };
+            };
             const pts = [
                 { x: p.left, y: p.top },
                 { x: p.left + p.width, y: p.top },
                 { x: p.left + p.width, y: p.top + p.height },
                 { x: p.left, y: p.top + p.height },
-            ].map((q) => apply(H, q));
+            ].map(map);
             const xs = pts.map((q) => q.x + host.left);
             const ys = pts.map((q) => q.y + host.top);
             const err = Math.max(

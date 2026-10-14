@@ -15,6 +15,47 @@ import { isResting, lerpTilt, restingTilt, tiltFor, tiltTransform } from './tilt
 import type { Point, TiltParams as Tilt } from '@ax-design/shape';
 
 const TILT_DURATION = 50;
+
+// The 2D affine transform closest to a tilt (least squares over the corners of the layout box),
+// around the center of the layout box, the transform origin of the content and the containers.
+function affineTilt(h: Homography, width: number, height: number): string {
+    const cx = width / 2;
+    const cy = height / 2;
+    const corners = [
+        [-cx, -cy],
+        [cx, -cy],
+        [cx, cy],
+        [-cx, cy],
+    ];
+    // Normal equations of [x y 1] * [a c e] = x' and [x y 1] * [b d f] = y'.
+    const m = [
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+    ];
+    const vx = [0, 0, 0];
+    const vy = [0, 0, 0];
+    for (const [x, y] of corners) {
+        const p = apply(h, { x: x + cx, y: y + cy });
+        const row = [x, y, 1];
+        for (let r = 0; r < 3; r++) {
+            for (let c = 0; c < 3; c++) m[r][c] += row[r] * row[c];
+            vx[r] += row[r] * (p.x - cx);
+            vy[r] += row[r] * (p.y - cy);
+        }
+    }
+    const [a, c, e] = solve3(m, vx);
+    const [b, d, f] = solve3(m, vy);
+    return `matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`;
+}
+
+// Cramer's rule for a 3 x 3 system.
+function solve3(m: number[][], v: number[]): number[] {
+    const det = (k: number[][]) =>
+        k[0][0] * (k[1][1] * k[2][2] - k[1][2] * k[2][1]) - k[0][1] * (k[1][0] * k[2][2] - k[1][2] * k[2][0]) + k[0][2] * (k[1][0] * k[2][1] - k[1][1] * k[2][0]);
+    const d = det(m);
+    return [0, 1, 2].map((col) => det(m.map((row, r) => row.map((value, c) => (c === col ? v[r] : value)))) / d);
+}
 // -moz-appearance exists in Gecko only.
 const gecko = typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('-moz-appearance', 'none');
 // Extra paint area around the layout box. Zero: a canvas that sticks out of its element overlaps
@@ -559,9 +600,6 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
                 this.tiltFrom = this.tiltNow || rest;
                 this.tiltTo = target;
                 this.tiltStart = now;
-                // Gecko: a transform arriving over frames after a flat stretch draws the
-                // backdrop of acrylic clear for each of those frames — arrive at once.
-                if (gecko && !this.tiltNow) this.tiltFrom = target;
             }
             if (this.released) this.pressPoint = null;
         }
@@ -570,25 +608,11 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             const t = Math.min(1, (now - this.tiltStart) / TILT_DURATION);
             this.tiltNow = lerpTilt(this.tiltFrom, this.tiltTo, t);
             tiltChanged = true;
-            // Gecko: never let a resting target materialize the tilt object: written out it is
-            // a perspective() with zero angles, and a perspective() on the containers turns
-            // the backdrop of acrylic clear for the frames it exists — the flash at release.
-            if (gecko && isResting(this.tiltTo)) this.tiltNow = null;
             if (t >= 1) {
                 this.tiltFrom = null;
                 if (isResting(this.tiltTo)) this.tiltNow = null;
                 this.tiltTo = null;
             }
-        }
-        // Gecko: flatten the tilt for the press itself. A 3D transform on the layer containers
-        // while the surface is pressed — animating or static — turns the backdrop-filter of an
-        // acrylic layer clear until the release; hover tilts are fine, so only the press drops
-        // it, and the tween back starts with the next pointer move after it.
-        const pressedNow = !!this.pressPoint && !this.released;
-        if (gecko && pressedNow) {
-            this.tiltNow = null;
-            this.tiltFrom = null;
-            this.tiltTo = null;
         }
         if (tiltChanged || geometryDirty) {
             this.homography = this.tiltNow ? tiltHomography(this.tiltNow) : null;
@@ -669,15 +693,12 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             }
         }
         if (changed.style || changed.size || this.clipKey === null) this.writeClip();
-        // Gecko: a surface that can tilt never drops the transform of its containers. Dropping
-        // it destroys their 3D layer and the next tilt makes a new one, and the frames of that
-        // re-creation draw the backdrop of acrylic clear — the flash at the end of a press.
-        // translateZ(0) keeps the layer alive and flat without the containing block a
-        // perspective() would make, which turns the blur off everywhere. Layers that tilt
-        // themselves get the flat form as always.
-        const transform = this.tiltNow ? tiltTransform(this.tiltNow) : '';
-        const containerTransform = transform || (gecko && this.canTilt(v) ? 'translateZ(0)' : '');
-        if (changed.tilt || changed.style || changed.size) this.writeTilt(containerTransform);
+        // Gecko: no 3D transform anywhere in the surface. Any of them, on any container, turns
+        // the backdrop-filter of acrylic clear, so the content and the containers tilt with the
+        // closest 2D transform instead (off by a fraction of a px at the depth of a tilt), and
+        // acrylic cuts its glass to the exact projection of the outline.
+        const transform = !this.tiltNow ? '' : gecko && this.homography ? affineTilt(this.homography, this.width, this.height) : tiltTransform(this.tiltNow);
+        if (changed.tilt || changed.style || changed.size) this.writeTilt(transform);
 
         const frame: SurfaceFrame = {
             width: this.width,
