@@ -1,6 +1,6 @@
 {
   "name": "@ax-design/surface",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Web component that implements Surface of Axiom Design System: one shape, one tilt and one frame scheduler for every visual layer.",
   "keywords": [
     "web-components",
