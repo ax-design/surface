@@ -1,9 +1,3 @@
-<h1 align="center">Surface</h1>
-
-<p align="center">
-  Web component that implements Surface of Axiom Design System.
-</p>
-
 <h1 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ax-design/surface/master/docs/logo-r.png">
