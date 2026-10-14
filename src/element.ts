@@ -570,6 +570,10 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             const t = Math.min(1, (now - this.tiltStart) / TILT_DURATION);
             this.tiltNow = lerpTilt(this.tiltFrom, this.tiltTo, t);
             tiltChanged = true;
+            // Gecko: never let a resting target materialize the tilt object: written out it is
+            // a perspective() with zero angles, and a perspective() on the containers turns
+            // the backdrop of acrylic clear for the frames it exists — the flash at release.
+            if (gecko && isResting(this.tiltTo)) this.tiltNow = null;
             if (t >= 1) {
                 this.tiltFrom = null;
                 if (isResting(this.tiltTo)) this.tiltNow = null;
