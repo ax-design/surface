@@ -1,7 +1,12 @@
-<h1 align="center">Surface</h1>
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ax-design/surface/master/docs/logo-r.png">
+    <img src="https://raw.githubusercontent.com/ax-design/surface/master/docs/logo.png" alt="Ax Surface">
+  </picture>
+</h1>
 
 <p align="center">
-  Web component that implements Surface of Axiom Design System.
+  Web component that Combine All Layers of Axiom Design System.
 </p>
 
 <p align="center">
