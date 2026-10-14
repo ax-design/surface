@@ -15,6 +15,8 @@ import { isResting, lerpTilt, restingTilt, tiltFor, tiltTransform } from './tilt
 import type { Point, TiltParams as Tilt } from '@ax-design/shape';
 
 const TILT_DURATION = 50;
+// -moz-appearance exists in Gecko only.
+const gecko = typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('-moz-appearance', 'none');
 // Extra paint area around the layout box. Zero: a canvas that sticks out of its element overlaps
 // the neighbors, and an accelerated canvas overlapping other content makes the compositor
 // promote that content too (Layerize and Paint tripled in the 1000-surface sweep). Outward
@@ -570,6 +572,16 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
                 if (isResting(this.tiltTo)) this.tiltNow = null;
                 this.tiltTo = null;
             }
+        }
+        // Gecko: flatten the tilt for the press itself. A 3D transform on the layer containers
+        // while the surface is pressed — animating or static — turns the backdrop-filter of an
+        // acrylic layer clear until the release; hover tilts are fine, so only the press drops
+        // it, and the tween back starts with the next pointer move after it.
+        const pressedNow = !!this.pressPoint && !this.released;
+        if (gecko && pressedNow) {
+            this.tiltNow = null;
+            this.tiltFrom = null;
+            this.tiltTo = null;
         }
         if (tiltChanged || geometryDirty) {
             this.homography = this.tiltNow ? tiltHomography(this.tiltNow) : null;
