@@ -629,16 +629,24 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             // trigger layout here.
             const p = this.paint;
             const m = ANTIALIAS_MARGIN;
-            const isDefault = p.left === -m && p.top === -m && p.width === this.width + 2 * m && p.height === this.height + 2 * m;
-            const key = isDefault ? '' : `${p.left} ${p.top} ${p.width} ${p.height}`;
+            // Within 0.01 px: a shape in the middle of a transition resolves its bounds with
+            // rounding errors, which used to switch the box on and off from frame to frame.
+            const near = (a: number, b: number) => Math.abs(a - b) < 0.01;
+            const isDefault = near(p.left, -m) && near(p.top, -m) && near(p.width, this.width + 2 * m) && near(p.height, this.height + 2 * m);
+            // A surface that can tilt keeps the box, as it keeps the boxes of its containers: a box
+            // made or dropped while it tilts turns acrylic next to it clear in Firefox.
+            const boxed = !isDefault || this.canTilt(v);
+            // To 0.01 px, so rounding errors do not write the same box again every frame.
+            const r = (n: number) => Math.round(n * 100) / 100;
+            const key = boxed ? `${r(p.left)} ${r(p.top)} ${r(p.width)} ${r(p.height)}` : '';
             if (key !== this.paintKey) {
                 this.paintKey = key;
-                this.layerBox.className = isDefault ? 'layers' : 'layers box';
+                this.layerBox.className = boxed ? 'layers box' : 'layers';
                 const s = this.layerBox.style;
-                s.left = isDefault ? '' : `${p.left}px`;
-                s.top = isDefault ? '' : `${p.top}px`;
-                s.width = isDefault ? '' : `${p.width}px`;
-                s.height = isDefault ? '' : `${p.height}px`;
+                s.left = boxed ? `${r(p.left)}px` : '';
+                s.top = boxed ? `${r(p.top)}px` : '';
+                s.width = boxed ? `${r(p.width)}px` : '';
+                s.height = boxed ? `${r(p.height)}px` : '';
             }
         }
         if (changed.style || changed.size || this.clipKey === null) this.writeClip();
@@ -694,6 +702,11 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     // Tilts the content and every layer container, except those of layers that tilt themselves.
     // A container covers the layout box, or the paint box when it is larger; the origin is the
     // center of the layout box either way.
+    private canTilt(v: Values): boolean {
+        const mode = v.keyword('--ax-tilt-mode');
+        return mode === 'absolute' || mode === 'relative';
+    }
+
     private writeTilt(transform: string) {
         const p = this.paint;
         const boxed = this.paintKey !== '';
@@ -701,8 +714,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         // A surface that can tilt keeps the boxes of its layer containers, pressed or not: a box
         // made or dropped while the surface tilts turns the backdrop-filter of acrylic next to it
         // clear in Firefox.
-        const mode = this.values ? this.values.keyword('--ax-tilt-mode') : 'off';
-        const tilts = mode === 'absolute' || mode === 'relative';
+        const tilts = !!this.values && this.canTilt(this.values);
         const key = `${transform}|${origin}|${this.containers.length}|${tilts}`;
         if (key === this.tiltKey) return;
         this.tiltKey = key;
