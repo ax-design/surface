@@ -42,15 +42,17 @@ function el<K extends keyof SVGElementTagNameMap>(name: K, attributes: Record<st
     return e;
 }
 
-// Engines without :focus-visible (Safari before 15.4) throw on the selector; :focus is the
-// closest they have.
-let focusSelector = ':focus-visible';
+// Engines throw on a selector they don't know. Firefox before 85 has :-moz-focusring, which
+// matches the same keyboard focus; Safari before 15.4 has neither, and :focus is the closest.
+const FOCUS_SELECTORS = [':focus-visible', ':-moz-focusring', ':focus'];
+let focusSelector = 0;
 function hasVisibleFocus(host: Element): boolean {
+    const selector = FOCUS_SELECTORS[focusSelector];
     try {
-        return host.matches(focusSelector) || !!host.querySelector(focusSelector);
+        return host.matches(selector) || !!host.querySelector(selector);
     } catch (error) {
-        if (focusSelector === ':focus') throw error;
-        focusSelector = ':focus';
+        if (focusSelector === FOCUS_SELECTORS.length - 1) throw error;
+        focusSelector++;
         return hasVisibleFocus(host);
     }
 }
