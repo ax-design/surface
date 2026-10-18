@@ -4,6 +4,7 @@ import { StyleBinding, StyleSchema, registerProperties } from '@ax-design/typed-
 import type { LengthPercentage, PropertySpec, PropertyValue } from '@ax-design/typed-om';
 import type { Quad, ShapeSpec } from '@ax-design/shape';
 import type { TriggerTarget } from './triggers.js';
+import { appearance } from './appearance.js';
 import type { PointerListener, PointerState } from './global.js';
 import { services } from './global.js';
 import { createLayer, whenLayerRegistered } from './layer.js';
@@ -183,6 +184,8 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     private released = false;
 
     private tiltChanged = false;
+    // The appearance version the layers last drew with.
+    private appearanceSeen = -1;
     private previous: PropertyValue[] = [];
     private uniformBorder: number | null = null;
     private hostAnimating = false;
@@ -358,6 +361,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         s.unobserveSize(this);
         s.unobserveVisibility(this);
         s.pointerListeners.delete(this);
+        appearance().listeners.delete(this.onAppearance);
         s.scheduler.cancel(this);
         this.removeEventListener('pointerdown', this.onPointerDown);
         this.removeEventListener('dragstart', onDragStart);
@@ -484,12 +488,18 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             this.styleDirty = true;
             this.startObserving();
             if (this.layers.some((l) => l.tracksPointer)) s.pointerListeners.add(this);
+            appearance().listeners.add(this.onAppearance);
             this.requestFrame();
         } else {
             this.stopObserving();
             s.pointerListeners.delete(this);
+            appearance().listeners.delete(this.onAppearance);
         }
     }
+
+    // A preference changed: draw a frame, whose `changed.appearance` tells the layers. Hidden
+    // surfaces catch up when they become visible, from the version.
+    private onAppearance = () => this.requestFrame();
 
     private onStyleChange = () => {
         this.styleDirty = true;
@@ -605,7 +615,9 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         }
         let tiltChanged = false;
         if (this.tiltTo && this.tiltFrom) {
-            const t = Math.min(1, (now - this.tiltStart) / TILT_DURATION);
+            // Without animations the tilt takes its target at once, as theme animations of Windows
+            // skip to their end.
+            const t = appearance().reducedMotion ? 1 : Math.min(1, (now - this.tiltStart) / TILT_DURATION);
             this.tiltNow = lerpTilt(this.tiltFrom, this.tiltTo, t);
             tiltChanged = true;
             if (t >= 1) {
@@ -659,12 +671,15 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             this.styleDirty = this.sizeDirty = this.pointerDirty = this.tiltDirty = false;
             return;
         }
+        const look = appearance();
         const changed = {
             style: this.styleDirty || this.geometryFresh,
             size: this.sizeDirty || this.geometryFresh,
             tilt: this.tiltChanged,
             pointer: this.pointerDirty,
+            appearance: look.version !== this.appearanceSeen,
         };
+        this.appearanceSeen = look.version;
         this.geometryFresh = false;
         if (changed.style || changed.size) {
             // The stylesheet default covers the layout box plus the antialias margin. Inline
@@ -713,6 +728,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             tiltTransform: transform,
             pointer: this.local,
             values: v,
+            appearance: look,
             changed,
             quality,
             now,

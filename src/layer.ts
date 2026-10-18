@@ -2,6 +2,7 @@ import type { Homography, Point, Quad, ResolvedShape } from '@ax-design/shape';
 import type { PropertySpec } from '@ax-design/typed-om';
 import type { Quality } from './scheduler.js';
 import type { Values } from './schema.js';
+import type { Appearance } from './appearance.js';
 
 export interface PaintBox {
     // Relative to the surface's layout box. Negative when outward features overflow it.
@@ -46,7 +47,11 @@ export interface SurfaceFrame {
     // Null when no pointer is present or the surface does not track it.
     pointer: LocalPointer | null;
     values: Values;
-    changed: { style: boolean; size: boolean; tilt: boolean; pointer: boolean };
+    // The user's display preferences: forced colors, reduced transparency and motion, and the
+    // fallback the page asked for. `changed.appearance` is set on the first frame after any of
+    // them changes, even when no style value did.
+    appearance: Appearance;
+    changed: { style: boolean; size: boolean; tilt: boolean; pointer: boolean; appearance: boolean };
     quality: Quality;
     now: number;
 }

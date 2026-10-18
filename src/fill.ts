@@ -4,6 +4,10 @@ import type { SurfaceFrame, SurfaceLayer } from './layer.js';
 
 // Built-in layer: the shape filled with --ax-fill-color and its border ring in
 // --ax-border-color, drawn as SVG so it stays crisp at any zoom.
+//
+// Forced colors do not reach SVG fill and stroke, so the layer applies them itself, the way the
+// browser treats a background and a border: the fill turns Canvas and keeps its alpha, and the
+// border turns CanvasText, visible even where it was transparent.
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -13,6 +17,13 @@ const schema: PropertySpec[] = [
 ];
 
 const css = (c: Rgba) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${c[3]})`;
+// Paints with the forced system color when there is one: a fill keeps the alpha of the author's
+// color, as a forced background does, and a border is opaque, as a forced border is. The alpha
+// goes in the opacity attribute, which every engine supports with a system color.
+const paint = (el: Element, attribute: 'fill' | 'stroke', c: Rgba, forced: string | null) => {
+    set(el, attribute, forced ? forced : css(c));
+    set(el, `${attribute}-opacity`, forced && attribute === 'fill' ? String(c[3]) : '1');
+};
 
 let clipId = 0;
 
@@ -60,23 +71,28 @@ export function createFillLayer(): SurfaceLayer {
         },
         write(frame: SurfaceFrame) {
             const { changed } = frame;
-            if (!changed.style && !changed.size && !changed.tilt) return false;
-            const { paint } = frame;
-            set(svg, 'viewBox', `${paint.left} ${paint.top} ${paint.width} ${paint.height}`);
+            if (!changed.style && !changed.size && !changed.tilt && !changed.appearance) return false;
+            const box = frame.paint;
+            set(svg, 'viewBox', `${box.left} ${box.top} ${box.width} ${box.height}`);
             const outline = toSvgPath(frame.shape.outline);
-            const borderColor = css(frame.values.color('--ax-border-color'));
+            // Older copies of the surface engine give no appearance.
+            const forced = !!frame.appearance && frame.appearance.forcedColors;
+            const borderColor = frame.values.color('--ax-border-color');
+            const borderPaint = forced ? 'CanvasText' : null;
             set(fill, 'd', outline);
-            set(fill, 'fill', css(frame.values.color('--ax-fill-color')));
+            paint(fill, 'fill', frame.values.color('--ax-fill-color'), forced ? 'Canvas' : null);
             if (frame.uniformBorder !== null) {
                 set(clipPath, 'd', outline);
                 set(stroke, 'd', outline);
-                set(stroke, 'stroke', borderColor);
+                paint(stroke, 'stroke', borderColor, borderPaint);
                 set(stroke, 'stroke-width', String(frame.uniformBorder * 2));
                 set(ring, 'd', '');
             } else {
                 set(stroke, 'd', '');
                 set(ring, 'd', `${outline} ${innerToSvgPath(frame.borderInner)}`);
-                set(ring, 'fill', borderColor);
+                // The ring is a filled shape, but it stands for the border.
+                set(ring, 'fill', borderPaint || css(borderColor));
+                set(ring, 'fill-opacity', '1');
             }
             return false;
         },

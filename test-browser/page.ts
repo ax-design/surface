@@ -1,7 +1,7 @@
 // Browser checks for <ax-surface>. Some steps need real input; the driver performs them when
 // window.__step asks for it and answers through window.__ack.
 import { apply, resolve, tiltHomography, toSvgPath } from '@ax-design/shape';
-import { register, registerLayer, services, shapeSpecFrom, borderWidthsFrom } from '../src/index.js';
+import { appearance, register, registerLayer, services, setAlwaysUseFallback, shapeSpecFrom, borderWidthsFrom } from '../src/index.js';
 import type { AxSurface } from '../src/index.js';
 
 interface Check {
@@ -40,6 +40,8 @@ const observing = (el: AxSurface) => services().triggers.has(el) || !!el.shadowR
 const hasDetector = (el: AxSurface) => !!el.shadowRoot!.querySelector('.ax-typed-om-c');
 
 // Count every rAF the page schedules, to prove the scheduler sleeps when idle.
+const probes: { [id: string]: { appearance: boolean; tilt: boolean; fallback: boolean }[] } = {};
+
 let rafCalls = 0;
 const rawRaf = window.requestAnimationFrame.bind(window);
 window.requestAnimationFrame = (cb: FrameRequestCallback) => {
@@ -60,6 +62,22 @@ async function run() {
         detach() {},
         write: () => false,
     }));
+    // A layer that records what each frame tells it about the appearance and the tilt.
+    registerLayer('appearance-probe', () => {
+        let id = '';
+        return {
+            static: true,
+            attach(container) {
+                id = ((container.getRootNode() as ShadowRoot).host as HTMLElement).id;
+            },
+            detach() {},
+            write(frame) {
+                const log = probes[id] || (probes[id] = []);
+                log.push({ appearance: frame.changed.appearance, tilt: frame.changed.tilt, fallback: frame.appearance.alwaysUseFallback });
+                return false;
+            },
+        };
+    });
     register();
     await frames(4);
     const a = byId('a');
@@ -347,6 +365,77 @@ async function run() {
     check('a surface selects no text', select === 'none', select);
     link.remove();
     own.remove();
+
+    // 9. Appearance: the focus ring, forced colors, the page's fallback and reduced motion.
+    {
+        const fr = byId('fr');
+        const ring = () => fr.shadowRoot!.querySelector('.layer-focus svg') as SVGSVGElement;
+        const forcedOk = () => matchMedia('(forced-colors: active)').matches;
+        check('no focus ring without focus', ring().style.display === 'none', ring().style.display);
+        await ask('tab-to-fb');
+        const fb = document.getElementById('fb');
+        if (document.activeElement === fb && fb!.matches(':focus-visible')) {
+            check('focus ring shows for keyboard focus', ring().style.display === '', ring().style.display);
+            const outline = fillPath(fr);
+            const paths = Array.from(ring().querySelectorAll('mask path'));
+            check('focus ring follows the shape', paths.length === 4 && paths.every((p) => p.getAttribute('d') === outline), outline.slice(0, 40));
+            // Bands of 0-1 px (secondary) and 1-3 px (primary) outside the outline.
+            const widths = paths.map((p) => p.getAttribute('stroke-width')).join(',');
+            check('focus ring bands are 1 px and 2 px wide', widths === '2,0,6,2', widths);
+            const fills = Array.from(ring().querySelectorAll('rect')).map((r) => r.getAttribute('fill')).join(' | ');
+            check('focus ring takes the Windows colors', fills === 'rgba(255, 255, 255, 0.6) | rgba(0, 0, 0, 1)', fills);
+
+            await ask('media:forcedColors=active');
+            if (forcedOk()) {
+                await frames(3);
+                const forcedFills = Array.from(ring().querySelectorAll('rect')).map((r) => r.getAttribute('fill')).join(' | ');
+                check('forced colors: focus ring in Canvas and CanvasText', forcedFills === 'Canvas | CanvasText', forcedFills);
+                const fillEl = fr.shadowRoot!.querySelectorAll('.layer-fill path')[1];
+                const strokeEl = fr.shadowRoot!.querySelectorAll('.layer-fill path')[2];
+                check('forced colors: fill turns Canvas, keeping its alpha', fillEl.getAttribute('fill') === 'Canvas' && fillEl.getAttribute('fill-opacity') === '1', `${fillEl.getAttribute('fill')} ${fillEl.getAttribute('fill-opacity')}`);
+                check('forced colors: border turns CanvasText', strokeEl.getAttribute('stroke') === 'CanvasText', String(strokeEl.getAttribute('stroke')));
+                check('forced colors reach appearance()', appearance().forcedColors);
+                await ask('media:forcedColors=none');
+                await frames(3);
+                check('leaving forced colors restores the fill', fillEl.getAttribute('fill') === 'rgba(255, 255, 255, 1)', String(fillEl.getAttribute('fill')));
+            }
+
+            fb!.blur();
+            await frames(3);
+            check('focus ring hides when focus leaves', ring().style.display === 'none', ring().style.display);
+        } else {
+            check('keyboard focus reaches the button', false, String(document.activeElement && document.activeElement.id));
+        }
+
+        // The page's fallback reaches every visible surface, observe="precise" ones too, in a
+        // frame that says so even though no style value changed.
+        for (const id of ['fr', 'pp']) probes[id] = [];
+        setAlwaysUseFallback(true);
+        await frames(3);
+        for (const id of ['fr', 'pp']) {
+            const log = probes[id] || [];
+            check(`setAlwaysUseFallback reaches #${id}`, log.some((f) => f.appearance && f.fallback), JSON.stringify(log));
+        }
+        setAlwaysUseFallback(false);
+        await frames(3);
+
+        // Reduced motion: the tilt takes its target in one frame instead of a 50 ms tween.
+        const tiltFrames = async () => {
+            probes.tm = [];
+            await ask('press-at:tm');
+            const pressed = probes.tm.filter((f) => f.tilt).length;
+            await ask('release');
+            await frames(3);
+            return pressed;
+        };
+        const tweened = await tiltFrames();
+        await ask('media:reducedMotion=reduce');
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            const jumped = await tiltFrames();
+            check('reduced motion: the tilt jumps to its target', tweened > 1 && jumped === 1, `tween ${tweened} frames, reduced ${jumped}`);
+            await ask('media:reducedMotion=null');
+        }
+    }
 
     return { userAgent: navigator.userAgent, checks };
 }

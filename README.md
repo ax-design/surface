@@ -74,6 +74,37 @@ Add the `clip` attribute and the content of the surface is cut to its shape, so 
 </ax-surface>
 ```
 
+### Keyboard focus
+
+Add the `focus` layer and the surface draws the focus visual of Windows around its shape while it, or an element in it, has keyboard focus (`:focus-visible`): a light 1 px ring against the shape and a dark 2 px ring around it. Unlike `outline`, the rings follow every corner and edge of the shape, and the `clip` attribute does not cut them.
+
+```html
+<ax-surface layers="fill reveal focus">
+  <button class="my-button">Hello</button>
+</ax-surface>
+```
+
+```css
+/* The surface draws the ring now; keep the browser's own outline for the keyboard off. */
+ax-surface .my-button:focus-visible { outline: none; }
+```
+
+The rings are drawn outside the element, so an ancestor with `overflow: hidden` cuts them like it cuts an outline. Change them with the `--ax-focus-ring-*` properties.
+
+### Accessibility preferences
+
+Surfaces follow the display preferences of the user, as the effects of Windows do:
+
+* **Forced colors** (Windows High Contrast, `forced-colors: active`): the `fill` layer turns its fill into `Canvas` and its border into `CanvasText`, as the browser does with a background and a border, and the focus rings take `CanvasText` and `Canvas`. SVG and canvas drawings are not recolored by the browser, so every layer handles this itself.
+* **Reduced motion** (`prefers-reduced-motion: reduce`): the tilt takes its pose at once instead of easing into it. The surface still tilts, as Windows still plays the pressed state when animations are off; only the transition is skipped.
+* **Reduced transparency** (`prefers-reduced-transparency: reduce`) and `setAlwaysUseFallback(true)`: effects with a solid fallback, such as acrylic and reveal, use it. A page can't detect battery saver or a slow device, the other times Windows falls back, so call `setAlwaysUseFallback` when you know better:
+
+```javascript
+import { setAlwaysUseFallback } from '@ax-design/surface';
+
+setAlwaysUseFallback(true);
+```
+
 ### Selecting and dragging
 
 A surface is a control, so pressing or dragging on it does not select its text, and the browser does not drag the links and images in it away (nor show the long-press callout of iOS). Give an element in it `draggable="true"` to drag it with the drag and drop of the browser; set `user-select: text` on the surface to make its text selectable again.
@@ -314,6 +345,30 @@ want the whole contract.
 
 **Description:** For the `fill` layer, the color of the border.
 
+### --ax-focus-ring-width, --ax-focus-ring-secondary-width
+
+**Type:** `<length>`
+
+**Default:** `2px`, `1px`
+
+**Description:** For the `focus` layer, the width of the outer (primary) ring and of the inner (secondary) ring.
+
+### --ax-focus-ring-offset
+
+**Type:** `<length>`
+
+**Default:** `0px`
+
+**Description:** For the `focus` layer, the gap between the shape and the inner ring.
+
+### --ax-focus-ring-color, --ax-focus-ring-secondary-color
+
+**Type:** `<color>`
+
+**Default:** `black`, `rgba(255, 255, 255, 0.6)`
+
+**Description:** For the `focus` layer, the colors of the outer and the inner ring. Set them for a dark theme; in forced colors mode they are `CanvasText` and `Canvas`.
+
 ## Writing a layer
 
 A layer is an object that draws one thing on the surface. Register it with a name, then use the name in the `layers` attribute:
@@ -343,6 +398,8 @@ registerLayer('glow', () => ({
 ```
 
 A paint box larger than the element overlaps its neighbors, and the browser may then have to composite them separately. Ask only for what you draw.
+
+`frame.appearance` holds the user's preferences (`forcedColors`, `reducedTransparency`, `reducedMotion`, `alwaysUseFallback`), and `frame.changed.appearance` is set on the first frame after one of them changed, even when no style value did. Draw with CSS system colors in forced colors mode, or not at all: the browser does not recolor SVG paint or canvas pixels. `useFallback(frame.appearance)` tells whether an effect with a solid fallback should use it. Outside a layer, `appearance()` returns the same state.
 
 While the surface is tilted, it puts the tilt on each layer's container. If your layer uses `backdrop-filter`, set `tiltsItself: true` and apply `frame.tiltTransform` to your own elements, around the center of the element's box: inside `position: sticky`, Firefox renders a backdrop-filter under a transformed ancestor with the wrong backdrop.
 

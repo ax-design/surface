@@ -55,6 +55,7 @@ function changedBranches(from: Node | null, to: Node | null): Node[] {
 const MEDIA_QUERIES = [
     '(prefers-color-scheme: dark)',
     '(prefers-reduced-motion: reduce)',
+    '(prefers-reduced-transparency: reduce)',
     '(prefers-contrast: more)',
     '(forced-colors: active)',
     '(orientation: portrait)',

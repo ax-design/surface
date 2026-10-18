@@ -23,12 +23,17 @@ interface Driver {
     move(x: number, y: number): Promise<void>;
     down(): Promise<void>;
     up(): Promise<void>;
+    // Playwright only.
+    key?(key: string): Promise<void>;
+    emulate?(media: Record<string, string | null>): Promise<void>;
     close(): Promise<void>;
 }
 
 async function playwright(name: string): Promise<Driver> {
     const pw = (await import('playwright')) as any;
-    const browser = await pw[name].launch();
+    // AX_BROWSER_PATH points the run at a system build instead.
+    const executablePath = process.env.AX_BROWSER_PATH;
+    const browser = await pw[name].launch(executablePath ? { executablePath } : {});
     const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
     await page.goto(url);
     return {
@@ -36,6 +41,8 @@ async function playwright(name: string): Promise<Driver> {
         move: (x, y) => page.mouse.move(x, y),
         down: () => page.mouse.down(),
         up: () => page.mouse.up(),
+        key: (key) => page.keyboard.press(key),
+        emulate: (media) => page.emulateMedia(media),
         close: () => browser.close(),
     };
 }
@@ -106,6 +113,18 @@ async function drive(d: Driver) {
                 await d.up();
             } else if (state.step === 'release') {
                 await d.up();
+            } else if (state.step === 'tab-to-fb') {
+                // From the checkbox before it, so the button gets keyboard focus (:focus-visible).
+                await d.eval(`document.getElementById('cb').focus()`);
+                if (d.key) await d.key('Tab');
+            } else if (state.step.startsWith('press-at:')) {
+                const r = await rect(state.step.slice('press-at:'.length));
+                await d.move(r.x + r.w - 12, r.y + 10);
+                await d.down();
+            } else if (state.step.startsWith('media:')) {
+                // media:forcedColors=active, media:reducedMotion=null. Safari cannot emulate.
+                const [feature, value] = state.step.slice('media:'.length).split('=');
+                if (d.emulate) await d.emulate({ [feature]: value === 'null' ? null : value });
             }
             await d.eval(`(window.__ack = ${JSON.stringify(state.step)})`);
         }
