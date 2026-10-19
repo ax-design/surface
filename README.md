@@ -121,6 +121,19 @@ setAlwaysUseFallback(true);
 
 A surface is a control, so pressing or dragging on it does not select its text, and the browser does not drag the links and images in it away (nor show the long-press callout of iOS). Give an element in it `draggable="true"` to drag it with the drag and drop of the browser; set `user-select: text` on the surface to make its text selectable again.
 
+### Pressing from code
+
+`press()` presses the surface as a pointer press does, for a keyboard activation: the tilt leans toward the point and the layers see a pressed pointer. Without an argument, or with `'center'`, it presses the center of the layout box (`pointerType` is `'keyboard'`); with `{ x, y }`, local coordinates in px from the top-left of the surface before its tilt, it presses that point (`'api'`). A pointer press in progress wins over it.
+
+`release()` ends the press: the tilt goes back and the layers see `pressed: false`, with the point kept so that a release effect can play. It also ends a pointer press before the pointer is up, for a container that takes the gesture over (a tile drag). After such an early release, `pressTakenOver` is `true` until the next press starts, so that the click after a drag can be swallowed.
+
+`pressRemaining()` returns the milliseconds until the press feedback has finished: the longest of the layers' `pressRemaining(now)` and the rest of the tilt tween (0 with reduced motion). Read it after a frame has drawn the press, as the tween starts with that frame:
+
+```javascript
+surface.press();
+requestAnimationFrame(() => setTimeout(activate, surface.pressRemaining()));
+```
+
 ### Watching style changes
 
 A surface notices style changes caused by classes, attributes, `:hover`, `:active`, `:focus`, form states, media queries, stylesheets and your own transitions. If a style of yours depends on something else (for example an element inside another component's shadow root), use `observe="precise"`:
@@ -412,6 +425,8 @@ registerLayer('glow', () => ({
 A paint box larger than the element overlaps its neighbors, and the browser may then have to composite them separately. Ask only for what you draw.
 
 `frame.appearance` holds the user's preferences (`forcedColors`, `reducedTransparency`, `reducedMotion`, `alwaysUseFallback`), and `frame.changed.appearance` is set on the first frame after one of them changed, even when no style value did. Draw with CSS system colors in forced colors mode, or not at all: the browser does not recolor SVG paint or canvas pixels. `useFallback(frame.appearance)` tells whether an effect with a solid fallback should use it. Outside a layer, `appearance()` returns the same state.
+
+`frame.pointer.pressed` is also true while `press()` holds the surface, with `pointerType` `'keyboard'` or `'api'`. Press feedback that takes time, such as a ripple, can say how long it still plays with `pressRemaining(now)`, the milliseconds from `now` (`performance.now()`) until it has finished. The surface takes the longest of its layers. Layers without the method count as finished.
 
 While the surface is tilted, it puts the tilt on each layer's container. If your layer uses `backdrop-filter`, set `tiltsItself: true` and apply `frame.tiltTransform` to your own elements, around the center of the element's box: inside `position: sticky`, Firefox renders a backdrop-filter under a transformed ancestor with the wrong backdrop.
 
