@@ -712,7 +712,9 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         const p = this.mappable && pointer.present ? this.toLocal(pointer.x, pointer.y) : null;
         if (api && !this.pointerPressing()) {
             const at = this.apiPoint(api);
-            this.local = this.pointerAllowed() ? { x: at.x, y: at.y, inside: true, pressed: !api.released, pointerType: api.pointerType } : null;
+            // pointerAllowed() asks where the pointer is (a reveal boundary); a press from the keyboard
+            // or from code has no pointer, so it is never held back.
+            this.local = { x: at.x, y: at.y, inside: true, pressed: !api.released, pointerType: api.pointerType };
         } else if (p && !this.pointerAllowed()) {
             this.local = null;
         } else if (p) {
