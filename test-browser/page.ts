@@ -201,6 +201,25 @@ async function run() {
     window.scrollTo(0, 0);
     await frames(6);
 
+    // 4b. Layers are made a little before a surface comes into view (256 px), so that one sliding in
+    // during an animation does not build them in the middle of it.
+    {
+        const near = document.createElement('ax-surface') as AxSurface;
+        near.setAttribute('layers', 'fill');
+        near.style.cssText = `position: absolute; left: 0; top: ${window.innerHeight + 100}px; width: 40px; height: 40px;`;
+        const away = near.cloneNode() as AxSurface;
+        away.style.top = `${window.innerHeight + 600}px`;
+        document.body.appendChild(near);
+        document.body.appendChild(away);
+        await new Promise((r) => setTimeout(r, 400));
+        await frames(4);
+        const layered = (el: AxSurface) => !!el.shadowRoot!.querySelector('.layer-fill');
+        check('a surface 100 px below the viewport has its layers made', layered(near), String(layered(near)));
+        check('a surface 600 px below the viewport has none yet', !layered(away), String(layered(away)));
+        near.remove();
+        away.remove();
+    }
+
     // 5. Tilt on press, released back to flat.
     const t = byId('t');
     await ask('press-t');
@@ -588,6 +607,28 @@ async function run() {
             if (!geckoTest) check('motion: the CSS turns around the origin too', content.style.transform.indexOf('translate(-160px, 0px)') === 0, content.style.transform);
             // Firefox draws it in flat containers: the paint box holds the shape that moved left.
             if (geckoTest) check('motion (Firefox): the paint box grows to the projected shape', mo.debugState.paint.left < 0, JSON.stringify(mo.debugState.paint));
+        }
+
+        // Scale and move outside the perspective: edge-on, the surface is a line, enlarged and moved.
+        mo.motion({ rotateY: 90, scale: 3, x: 200, y: 10 });
+        await frames(3);
+        {
+            const h = mo.debugState.homography;
+            const w = mo.offsetWidth;
+            const ht = mo.offsetHeight;
+            const top = h ? apply(h, { x: w / 2, y: 0 }) : null;
+            const bottom = h ? apply(h, { x: w / 2, y: ht }) : null;
+            check('motion scale and move: an edge-on line, enlarged and moved', !!top && !!bottom && Math.abs(top.x - (w / 2 + 200)) < 1e-6 && Math.abs(bottom.y - top.y - 3 * ht) < 1e-6 && Math.abs((top.y + bottom.y) / 2 - (ht / 2 + 10)) < 1e-6, JSON.stringify([top, bottom]));
+            if (!geckoTest) {
+                const r = content.getBoundingClientRect();
+                const host = mo.getBoundingClientRect();
+                // The corners lie at other depths than the middle: the box of the four projected corners.
+                const ys = [0, ht].reduce((acc: number[], y) => acc.concat([0, w].map((x) => apply(h, { x, y }).y)), []);
+                const want = Math.max(...ys) - Math.min(...ys);
+                check('motion scale and move: the CSS puts the content on the same line', Math.abs(r.left + r.width / 2 - (host.left + w / 2 + 200)) < 1 && Math.abs(r.height - want) < 1.5, `${r.left} ${r.width} ${r.height} want ${want}`);
+            } else {
+                check('motion scale and move (Firefox): the paint box holds the moved line', mo.debugState.paint.left + mo.debugState.paint.width >= w / 2 + 199, JSON.stringify(mo.debugState.paint));
+            }
         }
 
         // A fade: every layer applies it, the host never does.

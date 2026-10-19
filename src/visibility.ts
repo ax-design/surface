@@ -9,6 +9,10 @@
 // one more round runs when such activity pauses. An idle page runs no rounds at all.
 
 const SETTLE_DELAY = 300;
+// A surface counts as visible this far outside the viewport, so that its layers are made before it
+// comes in: a tile that slides or shrinks into view during an animation would otherwise build its
+// layers (and acrylic its noise) in the middle of the animation, and drop frames there.
+const MARGIN = '256px';
 
 export class VisibilityTracker {
     private callbacks = new Map<Element, (visible: boolean) => void>();
@@ -29,7 +33,7 @@ export class VisibilityTracker {
                 this.awaiting.delete(entry.target);
             }
             if (this.active && this.awaiting.size === 0) this.finishRound();
-        });
+        }, { rootMargin: MARGIN });
     }
 
     get available(): boolean {

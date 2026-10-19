@@ -69,6 +69,12 @@ export interface MotionState {
     // Local px; default the center of the surface. May lie outside it.
     originX?: number;
     originY?: number;
+    // A 2D scale about the origin and a move in px, outside the perspective: the turned surface
+    // is enlarged and moved as a picture (a launched tile flies toward the middle of the screen
+    // while it turns, and stays a line when edge-on). Defaults 1, 0 and 0.
+    scale?: number;
+    x?: number;
+    y?: number;
     // 0 to 1; default 1. Every layer applies it to its own drawing, none to an ancestor.
     opacity?: number;
 }
@@ -85,11 +91,16 @@ export function motionTilt(m: MotionState, width: number, height: number): TiltP
         translateZ: m.translateZ || 0,
         originX: m.originX,
         originY: m.originY,
+        scale: m.scale,
+        x: m.x,
+        y: m.y,
     };
 }
 
+// Whether the motion moves the surface at all (not only its opacity). The name is historical: a
+// scale or a move counts too, since in Firefox no transform at all may sit above acrylic.
 export function hasMotion3d(m: MotionState | null): boolean {
-    return !!m && !!(m.rotateX || m.rotateY || m.translateZ);
+    return !!m && !!(m.rotateX || m.rotateY || m.translateZ || m.x || m.y || (m.scale !== undefined && m.scale !== 1));
 }
 
 export function motionTransform(m: MotionState, width: number, height: number): string {
@@ -97,5 +108,7 @@ export function motionTransform(m: MotionState, width: number, height: number): 
     const dx = (t.originX === undefined ? width / 2 : t.originX) - width / 2;
     const dy = (t.originY === undefined ? height / 2 : t.originY) - height / 2;
     const move = dx || dy;
-    return (move ? `translate(${dx}px, ${dy}px) ` : '') + tiltTransform(t) + (move ? ` translate(${-dx}px, ${-dy}px)` : '');
+    const outer = (t.x || t.y ? `translate(${t.x || 0}px, ${t.y || 0}px) ` : '') + (move ? `translate(${dx}px, ${dy}px) ` : '');
+    const scale = t.scale !== undefined && t.scale !== 1 ? `scale(${t.scale}) ` : '';
+    return outer + scale + tiltTransform(t) + (move ? ` translate(${-dx}px, ${-dy}px)` : '');
 }

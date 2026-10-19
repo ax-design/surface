@@ -136,7 +136,7 @@ requestAnimationFrame(() => setTimeout(activate, surface.pressRemaining()));
 
 ### Moving from code
 
-`motion(state)` moves the surface in 3D and fades it, for one frame: call it on every frame of your animation with that frame's state, and with `null` to end it. `rotateX` / `rotateY` (degrees), `translateZ` (px) and `perspective` (px, default 1000) turn the surface around `originX` / `originY` (local px, default its center; the origin may lie outside the surface, as for a row of tiles turning around the left edge of their group), on top of its press tilt. `opacity` (0 to 1) fades it.
+`motion(state)` moves the surface in 3D and fades it, for one frame: call it on every frame of your animation with that frame's state, and with `null` to end it. `rotateX` / `rotateY` (degrees), `translateZ` (px) and `perspective` (px, default 1000) turn the surface around `originX` / `originY` (local px, default its center; the origin may lie outside the surface, as for a row of tiles turning around the left edge of their group), on top of its press tilt. `scale` (default 1) and `x` / `y` (px) enlarge it about the origin and move it outside the perspective, as a picture: an element turned edge-on stays a line wherever it is moved. `opacity` (0 to 1) fades it.
 
 ```javascript
 const start = performance.now();
