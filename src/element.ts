@@ -1,4 +1,4 @@
-import { apply, borderInner, invert, resolve, tiltHomography, toSvgPath } from '@ax-design/shape';
+import { apply, borderInner, invert, multiplyMatrix, planeHomography, projectContour, resolve, tiltMatrix, toSvgPath } from '@ax-design/shape';
 import type { Homography, ResolvedShape, TiltParams } from '@ax-design/shape';
 import { StyleBinding, StyleSchema, registerProperties } from '@ax-design/typed-om';
 import type { LengthPercentage, PropertySpec, PropertyValue } from '@ax-design/typed-om';
@@ -12,10 +12,13 @@ import type { LocalPointer, PaintBox, SurfaceFrame, SurfaceLayer } from './layer
 import { PRIORITY_IDLE, PRIORITY_POINTER, PRIORITY_PRESSED } from './scheduler.js';
 import type { FrameClient, Quality } from './scheduler.js';
 import { CORE_SCHEMA, SHARED_FALLBACK_CSS, SHARED_SCHEMA, Values, borderWidthsFrom, shapeSpecFrom } from './schema.js';
-import { isResting, lerpTilt, restingTilt, tiltFor, tiltTransform } from './tilt.js';
+import { hasMotion3d, isResting, lerpTilt, motionTilt, motionTransform, restingTilt, tiltFor, tiltTransform } from './tilt.js';
+import type { MotionState } from './tilt.js';
 import type { Point, TiltParams as Tilt } from '@ax-design/shape';
 
 const TILT_DURATION = 50;
+// The content fades back in over this after a 3D motion hid it (Firefox, see motion()).
+const CONTENT_FADE_MS = 167;
 
 // The 2D affine transform closest to a tilt (least squares over the corners of the layout box),
 // around the center of the layout box, the transform origin of the content and the containers.
@@ -188,6 +191,17 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     private takenOver = false;
 
     private tiltChanged = false;
+    // The motion set by motion(), and whether the layers have drawn it yet.
+    private motionState: MotionState | null = null;
+    private motionDirty = false;
+    // Firefox: the content is hidden during a 3D motion and fades back in from this time.
+    private contentHidden = false;
+    private contentFadeStart = -1;
+    private contentOpacity = '';
+    // The paint box of the untilted shape. In Firefox a 3D motion is drawn by the layers in flat
+    // containers, so the paint box grows to the projected shape meanwhile (paintMoved).
+    private flatPaint: PaintBox = { left: 0, top: 0, width: 0, height: 0 };
+    private paintMoved = false;
     // The appearance version the layers last drew with.
     private appearanceSeen = -1;
     private previous: PropertyValue[] = [];
@@ -250,7 +264,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
 
     private needsGeometry(): boolean {
         // The clip is drawn all the time, like a static layer.
-        if (this.pressPoint || this.apiPress || this.tiltNow || this.tiltTo || this.hasAttribute('clip')) return true;
+        if (this.pressPoint || this.apiPress || this.tiltNow || this.tiltTo || this.motionState || this.hasAttribute('clip')) return true;
         let reach = -1;
         for (const layer of this.layers) {
             if (layer.static) return true;
@@ -655,7 +669,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             const top = Math.min(0, b.top - o[0]) - ANTIALIAS_MARGIN;
             const right = Math.max(this.width, b.right + o[1]) + ANTIALIAS_MARGIN;
             const bottom = Math.max(this.height, b.bottom + o[2]) + ANTIALIAS_MARGIN;
-            this.paint = { left, top, width: right - left, height: bottom - top };
+            this.paint = this.flatPaint = { left, top, width: right - left, height: bottom - top };
         }
 
         // Tilt target on press and release, then a short tween.
@@ -688,8 +702,12 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
                 this.tiltTo = null;
             }
         }
-        if (tiltChanged || geometryDirty) {
-            this.homography = this.tiltNow ? tiltHomography(this.tiltNow) : null;
+        if (tiltChanged || geometryDirty || this.motionDirty) {
+            // The motion is outside the press tilt, as `transform: motion tilt`.
+            const tilt = this.tiltNow ? tiltMatrix(this.tiltNow) : null;
+            const motion = hasMotion3d(this.motionState) ? tiltMatrix(motionTilt(this.motionState!, this.width, this.height)) : null;
+            const both = tilt && motion ? multiplyMatrix(motion, tilt) : motion || tilt;
+            this.homography = both ? planeHomography(both) : null;
             const w = this.borderWidths;
             this.uniformBorder = !this.homography && w[0] === w[1] && w[1] === w[2] && w[2] === w[3] ? w[0] : null;
             this.ringCache = null;
@@ -702,6 +720,29 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
                     center: { x: this.width / 2, y: this.height / 2 },
                     tolerance: 0.1 / (window.devicePixelRatio || 1),
                 }).inner;
+            }
+        }
+
+        // Firefox draws a 3D motion in flat containers: the paint box must hold the projected shape,
+        // which a motion around an outside origin carries far from the element.
+        if (tiltChanged || geometryDirty || this.motionDirty) {
+            let next = this.flatPaint;
+            if (gecko && hasMotion3d(this.motionState) && this.homography && this.shape) {
+                const points = projectContour(this.shape.outline, this.homography, 1);
+                const o = this.layerOverflow(v);
+                let l = next.left, t = next.top, r = next.left + next.width, b = next.top + next.height;
+                for (const q of points) {
+                    l = Math.min(l, q.x - o[3]);
+                    t = Math.min(t, q.y - o[0]);
+                    r = Math.max(r, q.x + o[1]);
+                    b = Math.max(b, q.y + o[2]);
+                }
+                next = { left: Math.floor(l), top: Math.floor(t), width: Math.ceil(r) - Math.floor(l), height: Math.ceil(b) - Math.floor(t) };
+            }
+            const p = this.paint;
+            if (next.left !== p.left || next.top !== p.top || next.width !== p.width || next.height !== p.height) {
+                this.paint = next;
+                this.paintMoved = true;
             }
         }
 
@@ -745,10 +786,17 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         const changed = {
             style: this.styleDirty || this.geometryFresh,
             size: this.sizeDirty || this.geometryFresh,
-            tilt: this.tiltChanged,
+            // A motion changes the tilt the layers see too, so layers that only know changed.tilt
+            // follow it.
+            tilt: this.tiltChanged || this.motionDirty,
             pointer: this.pointerDirty,
             appearance: look.version !== this.appearanceSeen,
+            motion: this.motionDirty,
         };
+        this.motionDirty = false;
+        // A paint box that grew for a projected motion is a size change for the layers (canvases).
+        if (this.paintMoved) changed.size = true;
+        this.paintMoved = false;
         this.appearanceSeen = look.version;
         this.geometryFresh = false;
         if (changed.style || changed.size) {
@@ -782,8 +830,30 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         // the backdrop-filter of acrylic clear, so the content and the containers tilt with the
         // closest 2D transform instead (off by a fraction of a px at the depth of a tilt), and
         // acrylic cuts its glass to the exact projection of the outline.
-        const transform = !this.tiltNow ? '' : gecko && this.homography ? affineTilt(this.homography, this.width, this.height) : tiltTransform(this.tiltNow);
-        if (changed.tilt || changed.style || changed.size) this.writeTilt(transform);
+        // A 3D motion goes further than a press tilt, where the closest 2D transform no longer looks
+        // right: in Gecko the containers then stay flat, the layers draw the projected shape
+        // themselves (frame.projected) and the content is hidden, then fades back in.
+        const motion = this.motionState;
+        const projected = gecko && hasMotion3d(motion);
+        const tiltCss = this.tiltNow ? tiltTransform(this.tiltNow) : '';
+        const motionCss = hasMotion3d(motion) ? motionTransform(motion!, this.width, this.height) : '';
+        const transform = projected
+            ? ''
+            : gecko && this.homography
+              ? affineTilt(this.homography, this.width, this.height)
+              : [motionCss, tiltCss].filter(Boolean).join(' ');
+        if (changed.tilt || changed.style || changed.size || changed.motion) this.writeTilt(transform);
+        const opacity = motion && motion.opacity !== undefined ? Math.max(0, Math.min(1, motion.opacity)) : 1;
+        if (projected) {
+            this.contentHidden = true;
+            this.contentFadeStart = -1;
+        } else if (this.contentHidden) {
+            this.contentHidden = false;
+            this.contentFadeStart = now;
+        }
+        const fade = this.contentFadeStart < 0 || appearance().reducedMotion ? 1 : Math.min(1, (now - this.contentFadeStart) / CONTENT_FADE_MS);
+        if (fade >= 1) this.contentFadeStart = -1;
+        this.writeContentOpacity(this.contentHidden ? 0 : opacity * fade);
 
         const frame: SurfaceFrame = {
             width: this.width,
@@ -799,11 +869,13 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             pointer: this.local,
             values: v,
             appearance: look,
+            opacity,
+            projected,
             changed,
             quality,
             now,
         };
-        let again = !!this.tiltTo;
+        let again = !!this.tiltTo || this.contentFadeStart >= 0;
         if (this.layersAttached) for (const layer of this.layers) if (layer.write(frame)) again = true;
         // An author transition on this surface or an ancestor: keep reading every frame.
         // getAnimations covers engines that fire no events for custom property transitions; it
@@ -819,6 +891,28 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         this.sizeDirty = this.pointerDirty = this.tiltDirty = false;
         this.tiltChanged = false;
         if (again) this.requestFrame();
+    }
+
+    /**
+     * Moves the surface in 3D and fades it, for one frame: call it on every frame of an animation
+     * with the state of that frame, and with null to end it. `rotateX` / `rotateY` (degrees),
+     * `translateZ` (px) and `perspective` (px, default 1000) turn the surface around `originX` /
+     * `originY` (local px, default its center; may lie outside it), outside its press tilt. `opacity`
+     * fades it. Nothing is written on an ancestor of the layers: the layers draw the motion
+     * themselves, so acrylic keeps its backdrop. In Firefox, where no 3D transform may sit above
+     * acrylic, a 3D motion hides the content, which fades back in once the motion ends.
+     */
+    motion(state: MotionState | null): void {
+        this.motionState = state ? { ...state } : null;
+        this.motionDirty = true;
+        this.requestFrame();
+    }
+
+    private writeContentOpacity(value: number) {
+        const css = value >= 1 ? '' : String(Math.round(value * 1000) / 1000);
+        if (css === this.contentOpacity) return;
+        this.contentOpacity = css;
+        this.contentBox.style.opacity = css;
     }
 
     // clip: the content is cut to the shape (an image or a video in a tile). It is cut on the
@@ -863,7 +957,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
 
     // For tests and debugging.
     get debugState() {
-        return { width: this.width, height: this.height, paint: this.paint, shape: this.shape, tilt: this.tiltNow, local: this.local, values: this.values };
+        return { width: this.width, height: this.height, paint: this.paint, shape: this.shape, tilt: this.tiltNow, homography: this.homography, motion: this.motionState, local: this.local, values: this.values };
     }
 }
 

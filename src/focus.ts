@@ -1,4 +1,5 @@
-import { toSvgPath } from '@ax-design/shape';
+import { projectContour, toSvgPath } from '@ax-design/shape';
+import { polylinePath } from './fill.js';
 import type { PropertySpec, Rgba } from '@ax-design/typed-om';
 import type { SurfaceFrame, SurfaceLayer } from './layer.js';
 
@@ -153,14 +154,26 @@ export function createFocusLayer(): SurfaceLayer {
             const forced = !!frame.appearance && frame.appearance.forcedColors;
             const primaryFill = forced ? 'CanvasText' : css(v.color('--ax-focus-ring-color'));
             const secondaryFill = forced ? 'Canvas' : css(v.color('--ax-focus-ring-secondary-color'));
-            const outline = toSvgPath(frame.shape.outline);
-            const key = `${outline}|${offset}|${secondary}|${primary}|${primaryFill}|${secondaryFill}`;
+            // In Firefox during a 3D motion the container is flat and the ring goes around the
+            // projected shape (frame.projected); older engines give no `projected`.
+            const projected = frame.projected && frame.tilt ? projectContour(frame.shape.outline, frame.tilt) : null;
+            const outline = projected ? polylinePath(projected) : toSvgPath(frame.shape.outline);
+            const opacity = frame.opacity === undefined || frame.opacity >= 1 ? '1' : String(frame.opacity);
+            const key = `${outline}|${offset}|${secondary}|${primary}|${primaryFill}|${secondaryFill}|${opacity}`;
             if (key === drawn) return false;
             drawn = key;
 
             const p = frame.paint;
             set(svg, 'viewBox', `${p.left} ${p.top} ${p.width} ${p.height}`);
-            const b = frame.shape.bounds;
+            set(svg, 'opacity', opacity);
+            const b = projected
+                ? {
+                      left: Math.min(...projected.map((q) => q.x)),
+                      top: Math.min(...projected.map((q) => q.y)),
+                      right: Math.max(...projected.map((q) => q.x)),
+                      bottom: Math.max(...projected.map((q) => q.y)),
+                  }
+                : frame.shape.bounds;
             const reach = offset + secondary + primary + 1;
             const box = { x: b.left - reach, y: b.top - reach, w: b.right - b.left + 2 * reach, h: b.bottom - b.top + 2 * reach };
             band(rings[0], outline, offset, offset + secondary, box, secondaryFill);

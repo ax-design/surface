@@ -44,6 +44,7 @@ const pointers: { [id: string]: (LocalPointer | null)[] } = {};
 let pressMs = 0;
 
 // Count every rAF the page schedules, to prove the scheduler sleeps when idle.
+const motionLog: { opacity: number; projected: boolean; motion: boolean; tilt: boolean }[] = [];
 const probes: { [id: string]: { appearance: boolean; tilt: boolean; fallback: boolean }[] } = {};
 
 let rafCalls = 0;
@@ -99,6 +100,16 @@ async function run() {
             pressRemaining: () => pressMs,
         };
     });
+    // A layer that records what the frames say about the motion.
+    registerLayer('motion-probe', () => ({
+        static: true,
+        attach() {},
+        detach() {},
+        write(frame) {
+            motionLog.push({ opacity: frame.opacity, projected: frame.projected, motion: frame.changed.motion, tilt: !!frame.tilt });
+            return false;
+        },
+    }));
     register();
     await frames(4);
     const a = byId('a');
@@ -538,6 +549,71 @@ async function run() {
         }
         await ask('media:reducedMotion=null');
         pressMs = 0;
+    }
+
+    // 10. motion(): a 3D move and a fade the layers draw themselves. Nothing goes on an ancestor
+    // of the layers: in Firefox the containers stay flat and the layers draw the projected shape.
+    {
+        const mo = byId('mo') as AxSurface & { motion(state: unknown): void; debugState: any };
+        mo.scrollIntoView({ block: 'center' });
+        await frames(4);
+        const content = mo.shadowRoot!.querySelector('.content') as HTMLElement;
+        const fillBox = mo.shadowRoot!.querySelector('.layer-fill') as HTMLElement;
+        const fillSvg = fillBox.querySelector('svg') as SVGSVGElement;
+        const fillPathOf = () => (fillBox.querySelectorAll('path')[1] as SVGPathElement).getAttribute('d') || '';
+        const last = () => motionLog[motionLog.length - 1];
+
+        motionLog.length = 0;
+        mo.motion({ rotateY: 40 });
+        await frames(3);
+        check('motion: the layers hear of it', motionLog.some((f) => f.motion) && last().tilt, JSON.stringify(last()));
+        if (geckoTest) {
+            check('motion (Firefox): the frame is projected', last().projected === true, JSON.stringify(last()));
+            check('motion (Firefox): no transform on the containers or the content', fillBox.style.transform === '' && content.style.transform === '', `${fillBox.style.transform} | ${content.style.transform}`);
+            check('motion (Firefox): the content is hidden', content.style.opacity === '0', content.style.opacity);
+            const d = fillPathOf();
+            check('motion (Firefox): the fill draws the projected outline', d.indexOf('A') < 0 && d.indexOf('L') > 0, d.slice(0, 60));
+        } else {
+            check('motion: the content and the containers turn', content.style.transform.indexOf('rotateY(40deg)') >= 0 && fillBox.style.transform === content.style.transform, content.style.transform);
+            check('motion: not projected outside Firefox', last().projected === false, JSON.stringify(last()));
+        }
+
+        // The origin stays put: a row of tiles turning around the left edge of its group.
+        mo.motion({ rotateY: 30, originX: -100, originY: 30 });
+        await frames(3);
+        {
+            const h = mo.debugState.homography;
+            const p = h ? apply(h, { x: -100, y: 30 }) : null;
+            check('motion: the origin stays where it is', !!p && Math.abs(p.x + 100) < 1e-6 && Math.abs(p.y - 30) < 1e-6, JSON.stringify(p));
+            if (!geckoTest) check('motion: the CSS turns around the origin too', content.style.transform.indexOf('translate(-160px, 0px)') === 0, content.style.transform);
+            // Firefox draws it in flat containers: the paint box holds the shape that moved left.
+            if (geckoTest) check('motion (Firefox): the paint box grows to the projected shape', mo.debugState.paint.left < 0, JSON.stringify(mo.debugState.paint));
+        }
+
+        // A fade: every layer applies it, the host never does.
+        mo.motion({ opacity: 0.4 });
+        // In Firefox the content was hidden by the 3D motion and fades back in first (167 ms).
+        await new Promise((r) => setTimeout(r, 250));
+        await frames(2);
+        check('motion opacity: the frame carries it', Math.abs(last().opacity - 0.4) < 1e-9 && last().projected === false, JSON.stringify(last()));
+        check('motion opacity: the fill fades itself', fillSvg.getAttribute('opacity') === '0.4', String(fillSvg.getAttribute('opacity')));
+        check('motion opacity: the content fades', content.style.opacity === '0.4', content.style.opacity);
+        check('motion opacity: nothing on the host', getComputedStyle(mo).opacity === '1', getComputedStyle(mo).opacity);
+
+        // With a press: the motion is outside the press tilt.
+        mo.motion({ rotateY: 20 });
+        (mo as any).press();
+        await frames(6);
+        if (!geckoTest) check('motion with a press: both transforms', content.style.transform.indexOf('rotateY(20deg)') >= 0 && content.style.transform.split('perspective(').length === 3, content.style.transform);
+        (mo as any).release();
+
+        // The end: flat again, the content back.
+        mo.motion(null);
+        await frames(30);
+        check('motion(null): the paint box is the flat one again', mo.debugState.paint.left >= -1, JSON.stringify(mo.debugState.paint));
+        check('motion(null): flat and opaque again', !mo.debugState.homography && Math.abs(last().opacity - 1) < 1e-9 && last().projected === false, JSON.stringify(last()));
+        check('motion(null): the content is shown again', content.style.opacity === '' && content.style.transform === '', `${content.style.opacity} | ${content.style.transform}`);
+        check('motion(null): the fill is the plain outline again', fillPathOf().indexOf('A') > 0 || fillPathOf().indexOf('C') > 0 || fillPathOf() === toSvgPath(mo.debugState.shape.outline), fillPathOf().slice(0, 40));
     }
 
     return { userAgent: navigator.userAgent, checks };

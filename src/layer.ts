@@ -40,7 +40,7 @@ export interface SurfaceFrame {
     // layers that repaint every frame: filling a ring is much cheaper on a canvas than the
     // clipped stroke that uniformBorder allows.
     ringInner(): Point[];
-    // Current tilt of the surface, null when flat.
+    // Current tilt of the surface (the press tilt and the motion together), null when flat.
     tilt: Homography | null;
     // The tilt as a CSS transform for a box at the layout box, around its center; empty when
     // flat. For layers that set `tiltsItself`.
@@ -52,7 +52,16 @@ export interface SurfaceFrame {
     // fallback the page asked for. `changed.appearance` is set on the first frame after any of
     // them changes, even when no style value did.
     appearance: Appearance;
-    changed: { style: boolean; size: boolean; tilt: boolean; pointer: boolean; appearance: boolean };
+    // The opacity of the surface's motion (see AxSurface.motion), 1 without one. Each layer
+    // applies it to its own drawing: an opacity on an ancestor of a backdrop-filter would make
+    // that ancestor the backdrop root.
+    opacity: number;
+    // True when the containers carry no transform and the layers draw the shape through `tilt`
+    // themselves: in Firefox during a 3D motion, as no 3D transform may sit above acrylic there.
+    // projectContour() of @ax-design/shape gives the outline on screen; the points of
+    // ringInner() and borderInner go through apply(tilt, p). The content is hidden meanwhile.
+    projected: boolean;
+    changed: { style: boolean; size: boolean; tilt: boolean; pointer: boolean; appearance: boolean; motion: boolean };
     quality: Quality;
     now: number;
 }

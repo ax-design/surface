@@ -16,6 +16,7 @@ export function refreshAll(): void {
 export type { PointerListener, PointerState, Services } from './global.js';
 export { createLayer, hasLayer, registerLayer } from './layer.js';
 export type { LayerFactory, LocalPointer, PaintBox, SurfaceFrame, SurfaceLayer } from './layer.js';
+export type { MotionState } from './tilt.js';
 export { Scheduler } from './scheduler.js';
 export type { FrameClient, Quality } from './scheduler.js';
 export { CORE_SCHEMA, Values, borderWidthsFrom, shapeSpecFrom } from './schema.js';

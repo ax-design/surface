@@ -1,4 +1,5 @@
-import { innerToSvgPath, toSvgPath } from '@ax-design/shape';
+import { apply, innerToSvgPath, projectContour, toSvgPath } from '@ax-design/shape';
+import type { Point } from '@ax-design/shape';
 import type { PropertySpec, Rgba } from '@ax-design/typed-om';
 import type { SurfaceFrame, SurfaceLayer } from './layer.js';
 
@@ -26,6 +27,13 @@ const paint = (el: Element, attribute: 'fill' | 'stroke', c: Rgba, forced: strin
 };
 
 let clipId = 0;
+
+// A closed polyline as an SVG path.
+export function polylinePath(points: Point[]): string {
+    if (!points.length) return '';
+    const r = (n: number) => Math.round(n * 1000) / 1000;
+    return 'M' + points.map((p) => `${r(p.x)} ${r(p.y)}`).join('L') + 'Z';
+}
 
 // Sets an attribute only when the value differs; SVG attribute writes trigger style and layout.
 function set(el: Element, name: string, value: string) {
@@ -71,9 +79,24 @@ export function createFillLayer(): SurfaceLayer {
         },
         write(frame: SurfaceFrame) {
             const { changed } = frame;
-            if (!changed.style && !changed.size && !changed.tilt && !changed.appearance) return false;
+            if (!changed.style && !changed.size && !changed.tilt && !changed.appearance && !changed.motion) return false;
             const box = frame.paint;
             set(svg, 'viewBox', `${box.left} ${box.top} ${box.width} ${box.height}`);
+            // Older copies of the surface engine give no opacity and never project.
+            set(svg, 'opacity', frame.opacity === undefined || frame.opacity >= 1 ? '1' : String(frame.opacity));
+            if (frame.projected && frame.tilt) {
+                // The shape on screen, drawn flat: the container carries no transform (Firefox).
+                const tilt = frame.tilt;
+                const outlineOnScreen = polylinePath(projectContour(frame.shape.outline, tilt));
+                const forcedHere = !!frame.appearance && frame.appearance.forcedColors;
+                set(fill, 'd', outlineOnScreen);
+                paint(fill, 'fill', frame.values.color('--ax-fill-color'), forcedHere ? 'Canvas' : null);
+                set(stroke, 'd', '');
+                set(ring, 'd', `${outlineOnScreen} ${polylinePath(frame.ringInner().map((p) => apply(tilt, p)))}`);
+                set(ring, 'fill', forcedHere ? 'CanvasText' : css(frame.values.color('--ax-border-color')));
+                set(ring, 'fill-opacity', '1');
+                return false;
+            }
             const outline = toSvgPath(frame.shape.outline);
             // Older copies of the surface engine give no appearance.
             const forced = !!frame.appearance && frame.appearance.forcedColors;

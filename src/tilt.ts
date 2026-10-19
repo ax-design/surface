@@ -56,3 +56,46 @@ export function tiltTransform(t: TiltParams): string {
 export function isResting(t: TiltParams): boolean {
     return Math.abs(t.rotateX) < 1e-4 && Math.abs(t.rotateY) < 1e-4 && Math.abs(t.translateZ) < 1e-4;
 }
+
+// A motion of the surface (see AxSurface.motion), as a CSS transform for a box whose
+// transform-origin is the center of its layout box: the moves to and from the motion's origin
+// put the rotation where the motion asks for it.
+export interface MotionState {
+    rotateX?: number;
+    rotateY?: number;
+    translateZ?: number;
+    // px; default 1000.
+    perspective?: number;
+    // Local px; default the center of the surface. May lie outside it.
+    originX?: number;
+    originY?: number;
+    // 0 to 1; default 1. Every layer applies it to its own drawing, none to an ancestor.
+    opacity?: number;
+}
+
+export const MOTION_PERSPECTIVE = 1000;
+
+export function motionTilt(m: MotionState, width: number, height: number): TiltParams {
+    return {
+        width,
+        height,
+        perspective: m.perspective === undefined ? MOTION_PERSPECTIVE : m.perspective,
+        rotateX: m.rotateX || 0,
+        rotateY: m.rotateY || 0,
+        translateZ: m.translateZ || 0,
+        originX: m.originX,
+        originY: m.originY,
+    };
+}
+
+export function hasMotion3d(m: MotionState | null): boolean {
+    return !!m && !!(m.rotateX || m.rotateY || m.translateZ);
+}
+
+export function motionTransform(m: MotionState, width: number, height: number): string {
+    const t = motionTilt(m, width, height);
+    const dx = (t.originX === undefined ? width / 2 : t.originX) - width / 2;
+    const dy = (t.originY === undefined ? height / 2 : t.originY) - height / 2;
+    const move = dx || dy;
+    return (move ? `translate(${dx}px, ${dy}px) ` : '') + tiltTransform(t) + (move ? ` translate(${-dx}px, ${-dy}px)` : '');
+}

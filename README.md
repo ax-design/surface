@@ -134,6 +134,23 @@ surface.press();
 requestAnimationFrame(() => setTimeout(activate, surface.pressRemaining()));
 ```
 
+### Moving from code
+
+`motion(state)` moves the surface in 3D and fades it, for one frame: call it on every frame of your animation with that frame's state, and with `null` to end it. `rotateX` / `rotateY` (degrees), `translateZ` (px) and `perspective` (px, default 1000) turn the surface around `originX` / `originY` (local px, default its center; the origin may lie outside the surface, as for a row of tiles turning around the left edge of their group), on top of its press tilt. `opacity` (0 to 1) fades it.
+
+```javascript
+const start = performance.now();
+const frame = (now) => {
+  const t = Math.min(1, (now - start) / 600);
+  surface.motion({ rotateY: 90 * (1 - t), originX: -surface.offsetLeft, opacity: t });
+  if (t < 1) requestAnimationFrame(frame);
+  else surface.motion(null);
+};
+requestAnimationFrame(frame);
+```
+
+Nothing is written on an ancestor of the layers: the layers draw the motion themselves, so acrylic keeps its backdrop (an `opacity` on an ancestor makes it the backdrop root in every browser). In Firefox, where no 3D transform may sit above acrylic, the layers draw the projected shape in flat containers during a 3D motion, the content is hidden, and it fades back in once the motion ends.
+
 ### Watching style changes
 
 A surface notices style changes caused by classes, attributes, `:hover`, `:active`, `:focus`, form states, media queries, stylesheets and your own transitions. If a style of yours depends on something else (for example an element inside another component's shadow root), use `observe="precise"`:
@@ -425,6 +442,8 @@ registerLayer('glow', () => ({
 A paint box larger than the element overlaps its neighbors, and the browser may then have to composite them separately. Ask only for what you draw.
 
 `frame.appearance` holds the user's preferences (`forcedColors`, `reducedTransparency`, `reducedMotion`, `alwaysUseFallback`), and `frame.changed.appearance` is set on the first frame after one of them changed, even when no style value did. Draw with CSS system colors in forced colors mode, or not at all: the browser does not recolor SVG paint or canvas pixels. `useFallback(frame.appearance)` tells whether an effect with a solid fallback should use it. Outside a layer, `appearance()` returns the same state.
+
+`frame.opacity` is the opacity of the surface's motion: apply it to your own drawing (the opacity of your canvas or SVG), never to an ancestor. `frame.tilt` is the press tilt and the motion together. When `frame.projected` is true (Firefox during a 3D motion), your container carries no transform: draw the shape through `frame.tilt` yourself, with `projectContour(frame.shape.outline, frame.tilt)` of `@ax-design/shape` and `apply(frame.tilt, p)` for the points of `frame.ringInner()`; `frame.paint` then grows to hold the projected shape. `frame.changed.motion` is set on a frame whose motion changed.
 
 `frame.pointer.pressed` is also true while `press()` holds the surface, with `pointerType` `'keyboard'` or `'api'`. Press feedback that takes time, such as a ripple, can say how long it still plays with `pressRemaining(now)`, the milliseconds from `now` (`performance.now()`) until it has finished. The surface takes the longest of its layers. Layers without the method count as finished.
 
