@@ -2,7 +2,7 @@
 // window.__step asks for it and answers through window.__ack.
 import { apply, resolve, tiltHomography, toSvgPath } from '@ax-design/shape';
 import { appearance, register, registerLayer, services, setAlwaysUseFallback, shapeSpecFrom, borderWidthsFrom } from '../src/index.js';
-import type { AxSurface } from '../src/index.js';
+import type { AxSurface, LocalPointer } from '../src/index.js';
 
 interface Check {
     name: string;
@@ -38,6 +38,10 @@ const fillPath = (el: AxSurface) => el.shadowRoot!.querySelector('.layer-fill pa
 // Default surfaces register with the shared triggers; precise ones carry a detector.
 const observing = (el: AxSurface) => services().triggers.has(el) || !!el.shadowRoot!.querySelector('.ax-typed-om-c');
 const hasDetector = (el: AxSurface) => !!el.shadowRoot!.querySelector('.ax-typed-om-c');
+
+// What the press probe saw of each frame, and how long its press feedback lasts (set by the checks).
+const pointers: { [id: string]: (LocalPointer | null)[] } = {};
+let pressMs = 0;
 
 // Count every rAF the page schedules, to prove the scheduler sleeps when idle.
 const probes: { [id: string]: { appearance: boolean; tilt: boolean; fallback: boolean }[] } = {};
@@ -76,6 +80,23 @@ async function run() {
                 log.push({ appearance: frame.changed.appearance, tilt: frame.changed.tilt, fallback: frame.appearance.alwaysUseFallback });
                 return false;
             },
+        };
+    });
+    // A layer that records the pointer of each frame and says how long its press feedback lasts.
+    registerLayer('press-probe', () => {
+        let id = '';
+        return {
+            static: true,
+            attach(container) {
+                id = ((container.getRootNode() as ShadowRoot).host as HTMLElement).id;
+            },
+            detach() {},
+            write(frame) {
+                const log = pointers[id] || (pointers[id] = []);
+                log.push(frame.pointer ? { ...frame.pointer } : null);
+                return false;
+            },
+            pressRemaining: () => pressMs,
         };
     });
     register();
@@ -446,6 +467,77 @@ async function run() {
             check('reduced motion: the tilt jumps to its target', tweened > 1 && jumped === 1, `tween ${tweened} frames, reduced ${jumped}`);
             await ask('media:reducedMotion=null');
         }
+    }
+
+    // 10. Presses from code: press() is a pointer press for the tilt and the layers, release() ends
+    // it. pressTakenOver and pressRemaining() follow the presses.
+    {
+        const pr = byId('pr');
+        const content = pr.shadowRoot!.querySelector('.content') as HTMLElement;
+        const last = () => pointers.pr[pointers.pr.length - 1];
+
+        pointers.pr = [];
+        pr.press();
+        await frames(8);
+        const tilt = pr.debugState.tilt;
+        check('press() tilts the surface', content.style.transform !== '', content.style.transform);
+        check('press() at the center sinks the surface without leaning', !!tilt && Math.abs(tilt.rotateX) < 0.01 && Math.abs(tilt.rotateY) < 0.01 && tilt.translateZ < 0, JSON.stringify(tilt));
+        const centered = last();
+        check('press() shows the layers a keyboard press at the center', !!centered && centered.pressed && centered.inside && centered.pointerType === 'keyboard' && Math.abs(centered.x - 80) < 0.5 && Math.abs(centered.y - 30) < 0.5, JSON.stringify(centered));
+
+        pr.release();
+        await frames(8);
+        pointers.pr = [];
+        pr.press({ x: 150, y: 10 });
+        await frames(8);
+        const toward = pr.debugState.tilt;
+        check('press({x, y}) tilts toward that point', !!toward && toward.rotateX > 0 && toward.rotateY > 0, JSON.stringify(toward));
+        const at = last();
+        check('press({x, y}) shows the layers an api press at that point', !!at && at.pressed && at.pointerType === 'api' && Math.abs(at.x - 150) < 0.5 && Math.abs(at.y - 10) < 0.5, JSON.stringify(at));
+
+        pointers.pr = [];
+        pr.release();
+        await frames(8);
+        check('release() returns a programmatic press flat', content.style.transform === '' && pr.debugState.tilt === null, content.style.transform);
+        const released = pointers.pr.find((p) => !!p && !p.pressed);
+        check('release() shows the layers the release, keeping the point', !!released && released.pointerType === 'api' && Math.abs(released.x - 150) < 0.5, JSON.stringify(released));
+
+        // pressTakenOver: a release() during a pointer press sets it, a normal pointerup does not.
+        await ask('press-at:pr');
+        check('a pointer press starts with pressTakenOver false', !pr.pressTakenOver);
+        await ask('release');
+        check('a normal pointerup leaves pressTakenOver false', !pr.pressTakenOver);
+        await ask('press-at:pr');
+        pr.release();
+        check('release() during a pointer press sets pressTakenOver', pr.pressTakenOver);
+        await ask('release');
+        check('pressTakenOver stays set after the pointer is up', pr.pressTakenOver);
+        await ask('press-at:pr');
+        check('the next press resets pressTakenOver', !pr.pressTakenOver);
+        await ask('release');
+
+        // pressRemaining(): the largest of the layer and the tilt tween, nothing when no press runs.
+        pressMs = 500;
+        check('pressRemaining() is the layer value when it is the largest', pr.pressRemaining() === 500, String(pr.pressRemaining()));
+        pressMs = 0;
+        pr.press();
+        await frames(1);
+        const tween = pr.pressRemaining();
+        check('pressRemaining() counts the tilt tween right after a press', tween > 0 && tween <= 50, String(tween));
+        pr.release();
+        await frames(8);
+        check('pressRemaining() is 0 when nothing plays', pr.pressRemaining() === 0, String(pr.pressRemaining()));
+
+        await ask('media:reducedMotion=reduce');
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            pr.press();
+            await frames(1);
+            check('reduced motion: the tilt contributes nothing to pressRemaining()', pr.pressRemaining() === 0, String(pr.pressRemaining()));
+            pr.release();
+            await frames(8);
+        }
+        await ask('media:reducedMotion=null');
+        pressMs = 0;
     }
 
     return { userAgent: navigator.userAgent, checks };
