@@ -182,6 +182,10 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     private homography: Homography | null = null;
     private pressPoint: { x: number; y: number } | null = null;
     private released = false;
+    // A press started by press(): the point in the untilted plane (null for the center), its
+    // pointer type, and whether release() ended it.
+    private apiPress: { at: Point | null; pointerType: string; released: boolean } | null = null;
+    private takenOver = false;
 
     private tiltChanged = false;
     // The appearance version the layers last drew with.
@@ -246,7 +250,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
 
     private needsGeometry(): boolean {
         // The clip is drawn all the time, like a static layer.
-        if (this.pressPoint || this.tiltNow || this.tiltTo || this.hasAttribute('clip')) return true;
+        if (this.pressPoint || this.apiPress || this.tiltNow || this.tiltTo || this.hasAttribute('clip')) return true;
         let reach = -1;
         for (const layer of this.layers) {
             if (layer.static) return true;
@@ -507,7 +511,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     };
 
     onPointer(_state: PointerState, type: string) {
-        if (type === 'pointerup' || type === 'pointercancel' || type === 'pointerleave') this.release();
+        if (type === 'pointerup' || type === 'pointercancel' || type === 'pointerleave') this.endPointerPress();
         this.pointerDirty = true;
         this.requestFrame();
     }
@@ -515,6 +519,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     private onPointerDown = (event: PointerEvent) => {
         this.pressPoint = { x: event.clientX, y: event.clientY };
         this.released = false;
+        this.takenOver = false;
         this.tiltDirty = true;
         const s = services();
         // Releases arrive on the window; listen while pressed even without pointer layers.
@@ -522,13 +527,65 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         this.requestFrame();
     };
 
+    // A pointer press is in progress: a pointer press wins over one from press().
+    private pointerPressing(): boolean {
+        return !!this.pressPoint && !this.released;
+    }
+
+    // Presses the surface as a pointer press does, without a pointer (a keyboard press). `at` is in
+    // local coordinates of the untilted surface; the default is the center of the layout box. The
+    // layers see it as a pressed pointer, with pointerType 'keyboard' at the center and 'api' at a
+    // point. A pointer press in progress wins over it.
+    press(at?: { x: number; y: number } | 'center'): void {
+        const spot = at && at !== 'center' ? { x: at.x, y: at.y } : null;
+        this.apiPress = { at: spot, pointerType: spot ? 'api' : 'keyboard', released: false };
+        this.takenOver = false;
+        this.tiltDirty = true;
+        this.requestFrame();
+    }
+
+    // Where a press from press() is, in the untilted plane.
+    private apiPoint(press: { at: Point | null }): Point {
+        return press.at || { x: this.width / 2, y: this.height / 2 };
+    }
+
     // Ends the press before the pointer is up: the tilt and the press effects of the layers go
-    // back as on a release. For a container that takes the gesture over, such as a tile drag.
+    // back as on a release, and pressTakenOver tells that it was ended this way. Also ends a press
+    // from press(). For a container that takes the gesture over, such as a tile drag.
     release(): void {
-        if (!this.pressPoint || this.released) return;
+        if (this.pointerPressing()) this.takenOver = true;
+        this.endPointerPress();
+        this.endApiPress();
+    }
+
+    // True when release() ended the current or last pointer press before the pointer went up. The
+    // next press, pointer or press(), resets it.
+    get pressTakenOver(): boolean {
+        return this.takenOver;
+    }
+
+    // Milliseconds until the press feedback of this surface has finished: the longest of the
+    // layers' pressRemaining() and the tilt tween, which is instant with reduced motion.
+    pressRemaining(): number {
+        const now = performance.now();
+        let ms = 0;
+        for (const layer of this.layers) if (layer.pressRemaining) ms = Math.max(ms, layer.pressRemaining(now));
+        if (this.tiltTo && !appearance().reducedMotion) ms = Math.max(ms, this.tiltStart + TILT_DURATION - now);
+        return Math.max(0, ms);
+    }
+
+    private endPointerPress() {
+        if (!this.pointerPressing()) return;
         this.released = true;
         this.tiltDirty = true;
         if (!this.layers.some((l) => l.tracksPointer)) services().pointerListeners.delete(this);
+        this.requestFrame();
+    }
+
+    private endApiPress() {
+        if (!this.apiPress || this.apiPress.released) return;
+        this.apiPress.released = true;
+        this.tiltDirty = true;
         this.requestFrame();
     }
 
@@ -540,7 +597,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     // Pressed first, then under the pointer, then near and large surfaces: area over the
     // squared distance from the pointer to the surface (from the last measured rect).
     priority(): number {
-        if (this.pressPoint && !this.released) return PRIORITY_PRESSED;
+        if (this.pointerPressing() || (this.apiPress && !this.apiPress.released)) return PRIORITY_PRESSED;
         if (this.local && this.local.inside) return PRIORITY_POINTER;
         const pointer = services().pointer;
         const r = this.lastRect;
@@ -602,9 +659,14 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         }
 
         // Tilt target on press and release, then a short tween.
-        if (this.tiltDirty && this.mappable) {
+        // A press from press() needs no screen mapping.
+        if (this.tiltDirty && (this.mappable || this.apiPress)) {
             const rest = restingTilt(this.width, this.height, this.tiltPerspective(v));
-            const press = this.pressPoint && !this.released ? this.toUntiltedLocal(this.pressPoint.x, this.pressPoint.y) : null;
+            const press = this.pointerPressing()
+                ? this.toUntiltedLocal(this.pressPoint!.x, this.pressPoint!.y)
+                : this.apiPress && !this.apiPress.released
+                  ? this.apiPoint(this.apiPress)
+                  : null;
             const target = press ? this.tiltParams(v, this.width, this.height, press.x, press.y) : rest;
             if (target) {
                 this.tiltFrom = this.tiltNow || rest;
@@ -643,22 +705,28 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             }
         }
 
-        // Pointer in local coordinates, through the inverse tilt.
+        // Pointer in local coordinates, through the inverse tilt. A press from press() stands in for
+        // the pointer, and its release keeps the point for one frame, so layers see the release.
         const pointer = services().pointer;
+        const api = this.apiPress;
         const p = this.mappable && pointer.present ? this.toLocal(pointer.x, pointer.y) : null;
-        if (p && !this.pointerAllowed()) {
+        if (api && !this.pointerPressing()) {
+            const at = this.apiPoint(api);
+            this.local = this.pointerAllowed() ? { x: at.x, y: at.y, inside: true, pressed: !api.released, pointerType: api.pointerType } : null;
+        } else if (p && !this.pointerAllowed()) {
             this.local = null;
         } else if (p) {
             this.local = {
                 x: p.x,
                 y: p.y,
                 inside: p.x >= 0 && p.y >= 0 && p.x <= this.width && p.y <= this.height,
-                pressed: !!this.pressPoint && !this.released,
+                pressed: this.pointerPressing(),
                 pointerType: pointer.pointerType,
             };
         } else if (!pointer.present) {
             this.local = null;
         }
+        if (api && api.released) this.apiPress = null;
         this.tiltChanged = tiltChanged;
     }
 

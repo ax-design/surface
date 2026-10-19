@@ -17,8 +17,9 @@ export interface LocalPointer {
     x: number;
     y: number;
     inside: boolean;
-    // True from a pointerdown on this surface until the release.
+    // True from a pointerdown on this surface, or from press(), until the release.
     pressed: boolean;
+    // The pointer type of the press, or 'keyboard' and 'api' for press() without and with a point.
     pointerType: string;
 }
 
@@ -83,6 +84,9 @@ export interface SurfaceLayer {
     detach(): void;
     // Draws the frame. Returns true to request another frame (running animation).
     write(frame: SurfaceFrame): boolean;
+    // Milliseconds from `now` (performance.now()) until the press feedback of the layer, such as a
+    // ripple, has finished. Layers without it count as finished.
+    pressRemaining?(now: number): number;
 }
 
 export type LayerFactory = () => SurfaceLayer;
