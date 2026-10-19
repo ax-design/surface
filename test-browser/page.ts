@@ -631,6 +631,23 @@ async function run() {
             }
         }
 
+        // A surface hidden by a motion as it is added shows no content for a paint: the opacity is
+        // written at once, before the visibility observer has reported it.
+        {
+            const fresh = document.createElement('ax-surface') as AxSurface & { motion(state: unknown): void };
+            fresh.setAttribute('layers', 'fill');
+            fresh.style.cssText = 'display: block; width: 40px; height: 40px;';
+            document.body.appendChild(fresh);
+            fresh.motion({ opacity: 0 });
+            const freshContent = fresh.shadowRoot!.querySelector('.content') as HTMLElement;
+            check('motion: a hiding motion applies at once, before the first frame', freshContent.style.opacity === '0', freshContent.style.opacity);
+            fresh.motion(null);
+            await new Promise((r) => setTimeout(r, 400));
+            await frames(3);
+            check('motion: and the content shows again once it ends', freshContent.style.opacity === '', freshContent.style.opacity);
+            fresh.remove();
+        }
+
         // A fade: every layer applies it, the host never does.
         mo.motion({ opacity: 0.4 });
         // In Firefox the content was hidden by the 3D motion and fades back in first (167 ms).

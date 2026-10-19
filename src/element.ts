@@ -905,6 +905,17 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     motion(state: MotionState | null): void {
         this.motionState = state ? { ...state } : null;
         this.motionDirty = true;
+        // A motion that hides the content more than now does it at once: the next frame may come
+        // after a paint (a surface not yet reported visible draws none), and the content would show
+        // for that paint. Showing it again waits for the frame, which fades it in where it must.
+        const target = state && gecko && hasMotion3d(state) ? 0 : state && state.opacity !== undefined ? Math.max(0, Math.min(1, state.opacity)) : 1;
+        const now = this.contentOpacity === '' ? 1 : parseFloat(this.contentOpacity);
+        // Not visible, no frame draws it: the content follows at once both ways.
+        if (target < now || (!this.visible && target !== now)) {
+            this.contentHidden = target === 0 && gecko && hasMotion3d(state);
+            this.contentFadeStart = -1;
+            this.writeContentOpacity(target);
+        }
         this.requestFrame();
     }
 
