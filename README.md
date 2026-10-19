@@ -105,6 +105,18 @@ import { setAlwaysUseFallback } from '@ax-design/surface';
 setAlwaysUseFallback(true);
 ```
 
+* **Higher contrast** (`prefers-contrast: more`, for example macOS "Increase contrast"): surfaces don't change by themselves, as Windows has no such setting. Raise the contrast of the border and of the focus rings yourself:
+
+```css
+@media (prefers-contrast: more) {
+  ax-surface {
+    --ax-border-color: rgb(0, 0, 0);
+    --ax-focus-ring-color: rgb(0, 0, 0);
+    --ax-focus-ring-secondary-color: rgb(255, 255, 255);
+  }
+}
+```
+
 ### Selecting and dragging
 
 A surface is a control, so pressing or dragging on it does not select its text, and the browser does not drag the links and images in it away (nor show the long-press callout of iOS). Give an element in it `draggable="true"` to drag it with the drag and drop of the browser; set `user-select: text` on the surface to make its text selectable again.
