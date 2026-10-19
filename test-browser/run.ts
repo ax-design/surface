@@ -67,6 +67,12 @@ async function safari(): Promise<Driver> {
         move: (x, y) => pointer([{ type: 'pointerMove', duration: 0, x: Math.round(x), y: Math.round(y), origin: 'viewport' }]),
         down: () => pointer([{ type: 'pointerDown', button: 0 }]),
         up: () => pointer([{ type: 'pointerUp', button: 0 }]),
+        // WebDriver key codes: only the keys the page asks for.
+        key: async (key) => {
+            const value = ({ Tab: '\uE004' } as Record<string, string>)[key];
+            if (!value) return;
+            await call('POST', `/session/${sid}/actions`, { actions: [{ type: 'key', id: 'keyboard', actions: [{ type: 'keyDown', value }, { type: 'keyUp', value }] }] });
+        },
         async close() {
             await call('DELETE', `/session/${sid}`);
             proc.kill();

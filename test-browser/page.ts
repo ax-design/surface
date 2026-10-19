@@ -374,6 +374,12 @@ async function run() {
         check('no focus ring without focus', ring().style.display === 'none', ring().style.display);
         await ask('tab-to-fb');
         const fb = document.getElementById('fb');
+        // Safari's Tab skips buttons unless "Press Tab to highlight each item" is on. Focus set by
+        // the page right after a key press is keyboard focus all the same (:focus-visible).
+        if (document.activeElement !== fb) {
+            fb!.focus();
+            await frames(3);
+        }
         if (document.activeElement === fb && fb!.matches(':focus-visible')) {
             check('focus ring shows for keyboard focus', ring().style.display === '', ring().style.display);
             const outline = fillPath(fr);
@@ -403,6 +409,11 @@ async function run() {
             fb!.blur();
             await frames(3);
             check('focus ring hides when focus leaves', ring().style.display === 'none', ring().style.display);
+        } else if (document.activeElement === fb) {
+            // The driver's keys did not count as keyboard input (Safari through safaridriver):
+            // the ring must then stay away, as it does for a click.
+            check('no focus ring for focus that is not :focus-visible', ring().style.display === 'none', ring().style.display);
+            fb!.blur();
         } else {
             check('keyboard focus reaches the button', false, String(document.activeElement && document.activeElement.id));
         }
