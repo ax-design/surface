@@ -45,6 +45,7 @@
   "scripts": {
     "bench": "bun bench/run.ts",
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "test": "bun test test",
     "test:browser": "bun test-browser/run.ts",
     "demo": "bun demo/serve.ts",
     "check": "tsc -p tsconfig.check.json",

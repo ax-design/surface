@@ -151,6 +151,10 @@ requestAnimationFrame(frame);
 
 Nothing is written on an ancestor of the layers: the layers draw the motion themselves, so acrylic keeps its backdrop (an `opacity` on an ancestor makes it the backdrop root in every browser). In Firefox, where no 3D transform may sit above acrylic, the layers draw the projected shape in flat containers during a 3D motion, the content is hidden, and it fades back in once the motion ends.
 
+### Easing
+
+`windowsEasing(id)` gives the timing functions of the Windows 8 and 8.1 animation theme as CSS (`windowsEasing(54)` is the Start screen coming in, `'cubic-bezier(0, 0.5, 0.5, 1)'`); `WINDOWS_EASINGS` holds all twenty. For animations scripted with `requestAnimationFrame`, `parseEasing(value)` reads a CSS timing function (keywords and `cubic-bezier()`) and `bezierAt(curve, t)` gives its progress at `t`.
+
 ### Watching style changes
 
 A surface notices style changes caused by classes, attributes, `:hover`, `:active`, `:focus`, form states, media queries, stylesheets and your own transitions. If a style of yours depends on something else (for example an element inside another component's shadow root), use `observe="precise"`:

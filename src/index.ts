@@ -17,6 +17,8 @@ export type { PointerListener, PointerState, Services } from './global.js';
 export { createLayer, hasLayer, registerLayer } from './layer.js';
 export type { LayerFactory, LocalPointer, PaintBox, SurfaceFrame, SurfaceLayer } from './layer.js';
 export type { MotionState } from './tilt.js';
+export { WINDOWS_EASINGS, bezierAt, parseEasing, windowsEasing } from './easing.js';
+export type { Bezier } from './easing.js';
 export { Scheduler } from './scheduler.js';
 export type { FrameClient, Quality } from './scheduler.js';
 export { CORE_SCHEMA, Values, borderWidthsFrom, shapeSpecFrom } from './schema.js';
