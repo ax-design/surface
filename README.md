@@ -492,3 +492,12 @@ Surface works in browsers released since 2018 (Chrome 70, Firefox 63, Safari 12)
 * 0.2.2: the `clip` attribute cuts the content to the shape. Pressing or dragging on a surface no longer selects its text or drags its links and images. A surface that can tilt keeps the boxes of its layer containers while it is not pressed too: in Firefox, acrylic on a surface used to turn clear at times while it was pressed, when those boxes were made.
 * 0.2.3: `SHAPE_SCHEMA`, `BORDER_SCHEMA` and `TILT_SCHEMA`, the groups of the property contract, and a `./schema` subpath that takes the contract without the element.
 * 0.2.4: In Firefox, nothing in a surface gets a 3D transform: any of them turned the blur of acrylic clear. The content and the layers tilt with the closest 2D transform there, and a pressed surface keeps its tilt. The paint box of a surface no longer switches on and off while its shape moves. Use it with acrylic 0.2.1, which cuts its glass to the tilted outline in Firefox.
+
+## Changes in 0.3
+
+* `motion()` moves a surface in 3D, scales and moves it outside its perspective, and fades it, for entrances and launches. The layers follow it: use acrylic 0.3, elevation 0.2 and reveal-highlight 0.7. Content that a motion hides is hidden at once.
+* `press()` and `release()` press a surface from code, and `pressTakenOver` and `pressRemaining()` tell when its press feedback is over. A press from the keyboard or from code is never held back at a reveal boundary.
+* `appearance()` follows the display preferences of the user: forced colors, reduced transparency and reduced motion. `useFallback()` and `setAlwaysUseFallback()` switch the effects to their plain fallback. Borders and the focus ring get more contrast with `prefers-contrast: more`.
+* The `focus` layer, a focus ring that follows the shape, for keyboard focus only (`:-moz-focusring` before Firefox 85).
+* `WINDOWS_EASINGS`, `windowsEasing()`, `bezierAt()` and `parseEasing()`: the curves of the Windows animation theme, and cubic-béziers for scripted animations.
+* The layers are made before a surface comes into view.
