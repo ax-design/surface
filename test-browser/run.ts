@@ -109,6 +109,9 @@ async function drive(d: Driver) {
             } else if (state.step === 'move-inner') {
                 const r = await rect('inner');
                 await d.move(r.x + r.w * 0.7, r.y + r.h * 0.4);
+            } else if (state.step === 'hover-scaled') {
+                const r = await rect('sc');
+                await d.move(r.x + r.w * 0.8, r.y + r.h * 0.8);
             } else if (state.step === 'hover-pusher') {
                 const r = await rect('pusher');
                 await d.move(r.x + 10, r.y + 10);

@@ -347,6 +347,21 @@ async function run() {
     await ask('release');
     await frames(8);
 
+    // 5a2. A transform: scale() or CSS zoom ancestor makes the bounding rect smaller or
+    // larger than the layout box. The pointer is still in screen px, so it has to be mapped
+    // back through that scale; otherwise the local point is compressed and a reveal light
+    // stays in a corner of the surface.
+    await ask('hover-scaled');
+    await frames(6);
+    {
+        const sc = byId('sc');
+        const local = sc.debugState.local;
+        const ok = !!local && Math.abs(local.x - 128) < 1 && Math.abs(local.y - 48) < 1;
+        check('a scaled ancestor maps the pointer into the layout box', ok, JSON.stringify(local));
+    }
+    await ask('leave');
+    await frames(4);
+
     // 5b. Precise mode attaches a detector; default mode does not.
     check('precise surface has a detector', hasDetector(byId('p')) && !hasDetector(a));
     const pBefore = fillPath(byId('p'));

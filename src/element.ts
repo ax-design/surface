@@ -237,7 +237,14 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             return p && o ? { x: p.x - o.x, y: p.y - o.y } : null;
         }
         const r = this.rect || this.lastRect;
-        return r ? { x: x - r.left, y: y - r.top } : null;
+        if (!r) return null;
+        // A scaled or zoomed ancestor (a page transition, a design preview, CSS zoom) makes the
+        // bounding rect larger or smaller than the layout box while the pointer is in screen px.
+        // Divide it back into local px. A tilt of this surface makes the rect the box around the
+        // projected quad, where this ratio is not a scale; the homography below maps that.
+        const sx = !this.homography && this.width ? r.width / this.width : 1;
+        const sy = !this.homography && this.height ? r.height / this.height : 1;
+        return { x: (x - r.left) / (sx > 0 ? sx : 1), y: (y - r.top) / (sy > 0 ? sy : 1) };
     }
 
     // A screen point in this surface's local coordinates, through every tilt above and its own.
