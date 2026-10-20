@@ -604,7 +604,8 @@ async function run() {
             const h = mo.debugState.homography;
             const p = h ? apply(h, { x: -100, y: 30 }) : null;
             check('motion: the origin stays where it is', !!p && Math.abs(p.x + 100) < 1e-6 && Math.abs(p.y - 30) < 1e-6, JSON.stringify(p));
-            if (!geckoTest) check('motion: the CSS turns around the origin too', content.style.transform.indexOf('translate(-160px, 0px)') === 0, content.style.transform);
+            // WebKit writes translate(-160px, 0px) as translate(-160px).
+            if (!geckoTest) check('motion: the CSS turns around the origin too', /^translate\(-160px(, 0px)?\)/.test(content.style.transform), content.style.transform);
             // Firefox draws it in flat containers: the paint box holds the shape that moved left.
             if (geckoTest) check('motion (Firefox): the paint box grows to the projected shape', mo.debugState.paint.left < 0, JSON.stringify(mo.debugState.paint));
         }
