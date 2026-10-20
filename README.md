@@ -501,3 +501,5 @@ Surface works in browsers released since 2018 (Chrome 70, Firefox 63, Safari 12)
 * The `focus` layer, a focus ring that follows the shape, for keyboard focus only (`:-moz-focusring` before Firefox 85).
 * `WINDOWS_EASINGS`, `windowsEasing()`, `bezierAt()` and `parseEasing()`: the curves of the Windows animation theme, and cubic-béziers for scripted animations.
 * The layers are made before a surface comes into view.
+* 0.3.1: A motion to opacity 0 hides the layers at once, not only the content. They used to draw for one more paint at the opacity they had, so a tile starting its entrance showed its fill for a frame.
+
