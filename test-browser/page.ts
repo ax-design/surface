@@ -551,9 +551,12 @@ async function run() {
         check('pressRemaining() is the layer value when it is the largest', pr.pressRemaining() === 500, String(pr.pressRemaining()));
         pressMs = 0;
         pr.press();
+        const pressedAt = performance.now();
         await frames(1);
         const tween = pr.pressRemaining();
-        check('pressRemaining() counts the tilt tween right after a press', tween > 0 && tween <= 50, String(tween));
+        // A frame longer than the 50 ms tween (headless WebKit on Linux) ends it before the read.
+        const waited = performance.now() - pressedAt;
+        check('pressRemaining() counts the tilt tween right after a press', waited >= 50 ? tween === 0 : tween > 0 && tween <= 50, `${tween} after ${Math.round(waited)} ms`);
         pr.release();
         await frames(8);
         check('pressRemaining() is 0 when nothing plays', pr.pressRemaining() === 0, String(pr.pressRemaining()));
