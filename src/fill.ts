@@ -84,26 +84,41 @@ export function createFillLayer(): SurfaceLayer {
             set(svg, 'viewBox', `${box.left} ${box.top} ${box.width} ${box.height}`);
             // Older copies of the surface engine give no opacity and never project.
             set(svg, 'opacity', frame.opacity === undefined || frame.opacity >= 1 ? '1' : String(frame.opacity));
+            // Older copies of the surface engine give no appearance.
+            const forced = !!frame.appearance && frame.appearance.forcedColors;
+            const borderColor = frame.values.color('--ax-border-color');
+            // A border nobody can see: the fill alone. An animated surface writes the shape every
+            // frame, and a transparent border costs it a second element, a path and the clip on each
+            // one. Forced colors make even a transparent border visible (see above), so the border is
+            // drawn whenever they are on, whatever its color.
+            const border = forced || borderColor[3] > 0;
             if (frame.projected && frame.tilt) {
                 // The shape on screen, drawn flat: the container carries no transform (Firefox).
                 const tilt = frame.tilt;
                 const outlineOnScreen = polylinePath(projectContour(frame.shape.outline, tilt));
-                const forcedHere = !!frame.appearance && frame.appearance.forcedColors;
                 set(fill, 'd', outlineOnScreen);
-                paint(fill, 'fill', frame.values.color('--ax-fill-color'), forcedHere ? 'Canvas' : null);
+                paint(fill, 'fill', frame.values.color('--ax-fill-color'), forced ? 'Canvas' : null);
                 set(stroke, 'd', '');
-                set(ring, 'd', `${outlineOnScreen} ${polylinePath(frame.ringInner().map((p) => apply(tilt, p)))}`);
-                set(ring, 'fill', forcedHere ? 'CanvasText' : css(frame.values.color('--ax-border-color')));
-                set(ring, 'fill-opacity', '1');
+                if (border) {
+                    set(ring, 'd', `${outlineOnScreen} ${polylinePath(frame.ringInner().map((p) => apply(tilt, p)))}`);
+                    set(ring, 'fill', forced ? 'CanvasText' : css(borderColor));
+                    set(ring, 'fill-opacity', '1');
+                } else {
+                    set(ring, 'd', '');
+                }
                 return false;
             }
             const outline = toSvgPath(frame.shape.outline);
-            // Older copies of the surface engine give no appearance.
-            const forced = !!frame.appearance && frame.appearance.forcedColors;
-            const borderColor = frame.values.color('--ax-border-color');
-            const borderPaint = forced ? 'CanvasText' : null;
             set(fill, 'd', outline);
             paint(fill, 'fill', frame.values.color('--ax-fill-color'), forced ? 'Canvas' : null);
+            if (!border) {
+                // Nothing of the border is drawn, and its path is left alone: written on every frame,
+                // it would invalidate the clip and the stroke again for no pixels.
+                set(stroke, 'd', '');
+                set(ring, 'd', '');
+                return false;
+            }
+            const borderPaint = forced ? 'CanvasText' : null;
             if (frame.uniformBorder !== null) {
                 set(clipPath, 'd', outline);
                 set(stroke, 'd', outline);
