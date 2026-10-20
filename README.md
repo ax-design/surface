@@ -503,4 +503,5 @@ Surface works in browsers released since 2018 (Chrome 70, Firefox 63, Safari 12)
 * The layers are made before a surface comes into view.
 * 0.3.1: A motion to opacity 0 hides the layers at once, not only the content. They used to draw for one more paint at the opacity they had, so a tile starting its entrance showed its fill for a frame.
 * 0.3.2: A border whose color is transparent is no longer drawn. An animated surface used to write a path it could not show on every frame, and the clip behind it was invalidated with it. Forced colors still draw the border, where a transparent one turns into CanvasText.
+* 0.3.3: A pointer is mapped through a scaled or zoomed ancestor (a page transition, a design preview, `zoom`): its screen position is divided back into the local pixels of the surface, so a press lands where it looks. A surface that tilts still maps through its homography.
 
