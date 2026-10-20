@@ -54,6 +54,13 @@ window.requestAnimationFrame = (cb: FrameRequestCallback) => {
     return rawRaf(cb);
 };
 
+// What a press check needs to tell a failure apart: whether the surface ran its frame, and its tween.
+const pressState = (el: Element) => {
+    const s = el as unknown as Record<string, unknown>;
+    const r = el.getBoundingClientRect();
+    return JSON.stringify({ visible: s.visible, connected: s.connected, tiltTo: !!s.tiltTo, tiltStart: s.tiltStart, now: performance.now(), apiPress: s.apiPress, rect: [r.top, r.bottom], viewport: innerHeight });
+};
+
 async function run() {
     // A layer that only follows the pointer, like reveal does.
     registerLayer('pointer-probe', () => ({ tracksPointer: true, attach() {}, detach() {}, write: () => false }));
@@ -556,7 +563,7 @@ async function run() {
         const tween = pr.pressRemaining();
         // A frame longer than the 50 ms tween (headless WebKit on Linux) ends it before the read.
         const waited = performance.now() - pressedAt;
-        check('pressRemaining() counts the tilt tween right after a press', waited >= 50 ? tween === 0 : tween > 0 && tween <= 50, `${tween} after ${Math.round(waited)} ms`);
+        check('pressRemaining() counts the tilt tween right after a press', waited >= 50 ? tween === 0 : tween > 0 && tween <= 50, `${tween} after ${Math.round(waited)} ms ${pressState(pr)}`);
         pr.release();
         await frames(8);
         check('pressRemaining() is 0 when nothing plays', pr.pressRemaining() === 0, String(pr.pressRemaining()));
