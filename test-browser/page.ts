@@ -58,7 +58,7 @@ window.requestAnimationFrame = (cb: FrameRequestCallback) => {
 const pressState = (el: Element) => {
     const s = el as unknown as Record<string, unknown>;
     const r = el.getBoundingClientRect();
-    return JSON.stringify({ visible: s.visible, connected: s.connected, tiltTo: !!s.tiltTo, tiltStart: s.tiltStart, now: performance.now(), apiPress: s.apiPress, rect: [r.top, r.bottom], viewport: innerHeight });
+    return JSON.stringify({ visible: s.visible, connected: s.connected, tiltTo: !!s.tiltTo, tiltStart: s.tiltStart, now: performance.now(), apiPress: s.apiPress, rect: [r.top, r.bottom], viewport: innerHeight, reduced: matchMedia('(prefers-reduced-motion: reduce)').matches });
 };
 
 async function run() {
@@ -561,9 +561,11 @@ async function run() {
         const pressedAt = performance.now();
         await frames(1);
         const tween = pr.pressRemaining();
-        // A frame longer than the 50 ms tween (headless WebKit on Linux) ends it before the read.
+        // The tween takes no time with reduced motion (headless WebKit on Linux reports it), and a
+        // frame longer than its 50 ms ends it before the read.
         const waited = performance.now() - pressedAt;
-        check('pressRemaining() counts the tilt tween right after a press', waited >= 50 ? tween === 0 : tween > 0 && tween <= 50, `${tween} after ${Math.round(waited)} ms ${pressState(pr)}`);
+        const noTween = matchMedia('(prefers-reduced-motion: reduce)').matches || waited >= 50;
+        check('pressRemaining() counts the tilt tween right after a press', noTween ? tween === 0 : tween > 0 && tween <= 50, `${tween} after ${Math.round(waited)} ms ${pressState(pr)}`);
         pr.release();
         await frames(8);
         check('pressRemaining() is 0 when nothing plays', pr.pressRemaining() === 0, String(pr.pressRemaining()));
