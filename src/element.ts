@@ -877,6 +877,8 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         };
         let again = !!this.tiltTo || this.contentFadeStart >= 0;
         if (this.layersAttached) for (const layer of this.layers) if (layer.write(frame)) again = true;
+        // The layers have drawn the opacity of this frame: shown again from this paint on.
+        if (this.layersHidden && opacity > 0) this.writeLayersHidden(false);
         // An author transition on this surface or an ancestor: keep reading every frame.
         // getAnimations covers engines that fire no events for custom property transitions; it
         // is costly, so it runs only right after a change and while an animation was running.
@@ -916,7 +918,19 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             this.contentFadeStart = -1;
             this.writeContentOpacity(target);
         }
+        // The layers draw the opacity in their frame, after this paint: a motion that hides the
+        // surface hides them at once too, or the fill of a tile entering would show for a paint
+        // at the opacity it had. The frame that draws them again at an opacity shows them.
+        // visibility, not opacity: an opacity above acrylic would turn its blur clear.
+        if (state && state.opacity !== undefined && state.opacity <= 0) this.writeLayersHidden(true);
         this.requestFrame();
+    }
+
+    private layersHidden = false;
+    private writeLayersHidden(hidden: boolean) {
+        if (hidden === this.layersHidden) return;
+        this.layersHidden = hidden;
+        this.layerBox.style.visibility = hidden ? 'hidden' : '';
     }
 
     private writeContentOpacity(value: number) {

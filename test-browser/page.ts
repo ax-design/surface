@@ -685,6 +685,18 @@ async function run() {
         check('motion(null): flat and opaque again', !mo.debugState.homography && Math.abs(last().opacity - 1) < 1e-9 && last().projected === false, JSON.stringify(last()));
         check('motion(null): the content is shown again', content.style.opacity === '' && content.style.transform === '', `${content.style.opacity} | ${content.style.transform}`);
         check('motion(null): the fill is the plain outline again', fillPathOf().indexOf('A') > 0 || fillPathOf().indexOf('C') > 0 || fillPathOf() === toSvgPath(mo.debugState.shape.outline), fillPathOf().slice(0, 40));
+
+        // A motion that hides the surface hides the layers in the same task: their frame comes
+        // after the next paint, and the fill would show for it at the opacity it had.
+        const layers = mo.shadowRoot!.querySelector('.layers') as HTMLElement;
+        mo.motion({ opacity: 0 });
+        check('motion to opacity 0 hides the layers at once', layers.style.visibility === 'hidden', layers.style.visibility);
+        mo.motion({ opacity: 0.5 });
+        check('a motion that shows them again waits for their frame', layers.style.visibility === 'hidden', layers.style.visibility);
+        await frames(3);
+        check('and the frame shows the layers with their new opacity', layers.style.visibility === '' && Math.abs(last().opacity - 0.5) < 1e-9, `${layers.style.visibility} ${last().opacity}`);
+        mo.motion(null);
+        await frames(3);
     }
 
     return { userAgent: navigator.userAgent, checks };
