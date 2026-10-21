@@ -209,11 +209,11 @@ Shape properties are not inherited, set them on the `ax-surface` element itself.
 
 ### --ax-corner-shoulder-radius, --ax-corner-{corner}-shoulder-radius
 
-**Type:** `<length>`
+**Type:** `<length>`; `<length> | auto`
 
-**Default:** `0px`
+**Default:** `0px`; `auto`
 
-**Description:** Rounds the two points where a `bevel`, `scoop` or `notch` corner meets the sides. `round` corners ignore it. The general property sets every corner unless a corner sets its own. With `--ax-radius: 50%` and `scoop`, neighboring corners meet in the middle of each side, and the shoulder radius rounds those points into a soft star; very large values turn it into a circle.
+**Description:** Rounds the two points where a `bevel`, `scoop` or `notch` corner meets the sides. Each corner defaults to `auto`, which means "use `--ax-corner-shoulder-radius`". `round` corners ignore it. The general property sets every corner unless a corner sets its own. With `--ax-radius: 50%` and `scoop`, neighboring corners meet in the middle of each side, and the shoulder radius rounds those points into a soft star; very large values turn it into a circle.
 
 ### --ax-corner-{corner}-shift-x, --ax-corner-{corner}-shift-y
 
@@ -225,7 +225,7 @@ Shape properties are not inherited, set them on the `ax-surface` element itself.
 
 ### --ax-edge-kind, --ax-edge-depth, --ax-edge-span, --ax-edge-at, --ax-edge-ratio, --ax-edge-tip-radius, --ax-edge-shoulder-radius
 
-**Description:** The feature of every side at once. Each one is the default of the side properties below with the same name, so `--ax-edge-depth` sets `--ax-edge-top-depth`, `--ax-edge-right-depth` and so on, unless a side sets its own. Types and defaults are the same as for the side properties. Transitions and animations of these properties move all four sides.
+**Description:** The feature of every side at once. Each side property below defaults to `auto`, which means "use the general property of the same name", so `--ax-edge-depth` sets `--ax-edge-top-depth`, `--ax-edge-right-depth` and so on, unless a side sets its own. Transitions and animations of these properties move all four sides.
 
 ```css
 .cookie {
@@ -243,51 +243,51 @@ Sides run clockwise (see `--ax-edge-{side}-at`), so one `--ax-edge-at` away from
 
 ### --ax-edge-{side}-kind
 
-**Type:** `flat | arc | rect | triangle | trapezoid | cusp`
+**Type:** `flat | arc | rect | triangle | trapezoid | cusp | auto`
 
-**Default:** `flat`
+**Default:** `auto`
 
-**Description:** The feature on one side. `arc` is a circular bump or notch, `rect`, `triangle` and `trapezoid` are straight ones. `cusp` is two arcs that leave the side smoothly at both ends of the span and meet in a point: inward it pinches the side (the waist of the Material bun, the gaps of the clover), outward it makes a pointed arch. It needs no shoulder radius, and `tip-radius` rounds the point.
+**Description:** The feature on one side. `auto` means "use `--ax-edge-kind`". `arc` is a circular bump or notch, `rect`, `triangle` and `trapezoid` are straight ones. `cusp` is two arcs that leave the side smoothly at both ends of the span and meet in a point: inward it pinches the side (the waist of the Material bun, the gaps of the clover), outward it makes a pointed arch. It needs no shoulder radius, and `tip-radius` rounds the point.
 
 ### --ax-edge-{side}-depth
 
-**Type:** `<length>`
+**Type:** `<length> | auto`
 
-**Default:** `0px`
+**Default:** `auto`
 
-**Description:** How far the feature goes, positive values go out of the shape, negative values go into it.
+**Description:** How far the feature goes, positive values go out of the shape, negative values go into it. `auto` means "use `--ax-edge-depth`".
 
 ### --ax-edge-{side}-span
 
-**Type:** `<length-percentage>`
+**Type:** `<length-percentage> | auto`
 
-**Default:** `33%`
+**Default:** `auto`
 
-**Description:** The width of the feature along the side, percentages are relative to the length of the side.
+**Description:** The width of the feature along the side, percentages are relative to the length of the side. `auto` means "use `--ax-edge-span`".
 
 ### --ax-edge-{side}-at
 
-**Type:** `<length-percentage>`
+**Type:** `<length-percentage> | auto`
 
-**Default:** `50%`
+**Default:** `auto`
 
-**Description:** Where the middle of the feature sits along the side. Sides run clockwise: `top` from left to right, `right` from top to bottom, `bottom` from right to left and `left` from bottom to top. So `--ax-edge-bottom-at: 20%` is near the bottom right corner.
+**Description:** Where the middle of the feature sits along the side. Sides run clockwise: `top` from left to right, `right` from top to bottom, `bottom` from right to left and `left` from bottom to top. So `--ax-edge-bottom-at: 20%` is near the bottom right corner. `auto` means "use `--ax-edge-at`".
 
 ### --ax-edge-{side}-ratio
 
-**Type:** `<number>`
+**Type:** `<number> | auto`
 
-**Default:** `0.5`
+**Default:** `auto`
 
-**Description:** For `trapezoid` only, the width of the far end compared to the base. `1` gives a rectangle, `0` a triangle, and animating it morphs one into the other.
+**Description:** For `trapezoid` only, the width of the far end compared to the base. `1` gives a rectangle, `0` a triangle, and animating it morphs one into the other. `auto` means "use `--ax-edge-ratio`".
 
 ### --ax-edge-{side}-tip-radius, --ax-edge-{side}-shoulder-radius
 
-**Type:** `<length>`
+**Type:** `<length> | auto`
 
-**Default:** `0px`
+**Default:** `auto`
 
-**Description:** Rounds the far corners (tip) and the corners where the feature meets the side (shoulder).
+**Description:** Rounds the far corners (tip) and the corners where the feature meets the side (shoulder). `auto` means "use `--ax-edge-tip-radius`" or "use `--ax-edge-shoulder-radius`".
 
 ### --ax-border-width
 
@@ -356,8 +356,7 @@ Sides run clockwise (see `--ax-edge-{side}-at`), so one `--ax-edge-at` away from
 ## Schema groups
 
 The properties above come in three groups, and a component that needs only one of them does not
-have to take the rest. Each group is exported as a bundle with the parts that have to be
-installed together:
+have to take the rest. Each group is exported as a bundle:
 
 ```javascript
 import { SHAPE } from '@ax-design/surface';
@@ -365,11 +364,11 @@ import { SHAPE } from '@ax-design/surface';
 import { SHAPE } from '@ax-design/surface/schema';
 ```
 
-* `SHAPE.read` - the shape properties, read on every paint.
-* `SHAPE.shared` - the general properties (`--ax-edge-span` and friends) that set every side or
-  corner at once. They are registered but never read: `SHAPE.fallbackCss` is what passes a
-  general value on to each side, so it belongs in the consumer's shadow root.
-* `BORDER.read`, `TILT.read` - the border and the tilt properties. They have no shared
+* `SHAPE.read` - the shape properties, read on every paint. This includes the general
+  properties (`--ax-edge-span` and friends) that set every side or corner at once: each
+  per-side or per-corner property defaults to `auto` and the surface reads the general value
+  when it does.
+* `BORDER.read`, `TILT.read` - the border and the tilt properties. They have no general
   counterpart.
 
 `CORE_SCHEMA` is the three `read` lists in that order, unchanged, for consumers and layers that
@@ -478,7 +477,7 @@ customElements.define('my-card', MyCard);
 
 Several packages may each bundle their own copy of Surface (the `build/` files of `@ax-design/reveal-highlight` and `@ax-design/acrylic` do), and they share their layers and their scheduler on the page.
 
-The copy that loads first defines `<ax-surface>`. Newer properties, such as the shared `--ax-edge-*` properties, only work when that copy knows them, so keep the copies on the page at the same version.
+The copy that loads first defines `<ax-surface>`. Newer properties, such as the general `--ax-edge-*` properties, only work when that copy knows them, so keep the copies on the page at the same version.
 
 Surface works in browsers released since 2018 (Chrome 70, Firefox 63, Safari 12). It needs `ResizeObserver`, `IntersectionObserver` and Pointer Events, and tells you in the console when one of them is missing so that you can load a polyfill.
 

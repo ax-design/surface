@@ -13,10 +13,30 @@ const CORNERS = ['top-left', 'top-right', 'bottom-right', 'bottom-left'];
 const SIDES = ['top', 'right', 'bottom', 'left'];
 const CORNER_SHAPES = ['round', 'bevel', 'scoop', 'notch'];
 const EDGE_KINDS = ['flat', 'arc', 'rect', 'triangle', 'trapezoid', 'cusp'];
+// `auto` is the "use the general value" sentinel for per-side and per-corner properties.
+const AUTO = ['auto'];
 
-const lp = (name: string, initial: string): PropertySpec => ({ name, syntax: { type: 'length-percentage' }, initial, inherits: false, register: true });
-const len = (name: string, initial: string, inherits = false): PropertySpec => ({ name, syntax: { type: 'length' }, initial, inherits, register: true });
-const num = (name: string, initial: string, inherits = false): PropertySpec => ({ name, syntax: { type: 'number' }, initial, inherits, register: true });
+const lp = (name: string, initial: string, keywords?: string[]): PropertySpec => ({
+    name,
+    syntax: keywords ? { type: 'length-percentage', keywords } : { type: 'length-percentage' },
+    initial,
+    inherits: false,
+    register: true,
+});
+const len = (name: string, initial: string, inherits = false, keywords?: string[]): PropertySpec => ({
+    name,
+    syntax: keywords ? { type: 'length', keywords } : { type: 'length' },
+    initial,
+    inherits,
+    register: true,
+});
+const num = (name: string, initial: string, inherits = false, keywords?: string[]): PropertySpec => ({
+    name,
+    syntax: keywords ? { type: 'number', keywords } : { type: 'number' },
+    initial,
+    inherits,
+    register: true,
+});
 const kw = (name: string, values: string[], initial: string, inherits = false): PropertySpec => ({
     name,
     syntax: { type: 'keyword', values },
@@ -27,9 +47,22 @@ const kw = (name: string, values: string[], initial: string, inherits = false): 
 
 const TILT_OFF = { property: '--ax-tilt-mode', values: ['off'] };
 
-const EDGE_PARAMS = ['kind', 'depth', 'span', 'at', 'ratio', 'tip-radius', 'shoulder-radius'];
-
-function edgeSpecs(prefix: string): PropertySpec[] {
+// The seven edge feature parameters. `auto` builds the per-side form, where every parameter
+// falls back to the general `--ax-edge-*` value unless the side sets its own; the general form
+// keeps the plain values because a general property never falls back. The sentinel is `auto`
+// rather than a negative value because depth is a signed length (an inward feature).
+function edgeSpecs(prefix: string, auto: boolean): PropertySpec[] {
+    if (auto) {
+        return [
+            kw(`${prefix}kind`, [...EDGE_KINDS, 'auto'], 'auto'),
+            len(`${prefix}depth`, 'auto', false, AUTO),
+            lp(`${prefix}span`, 'auto', AUTO),
+            lp(`${prefix}at`, 'auto', AUTO),
+            num(`${prefix}ratio`, 'auto', false, AUTO),
+            len(`${prefix}tip-radius`, 'auto', false, AUTO),
+            len(`${prefix}shoulder-radius`, 'auto', false, AUTO),
+        ];
+    }
     return [
         kw(`${prefix}kind`, EDGE_KINDS, 'flat'),
         len(`${prefix}depth`, '0px'),
@@ -41,19 +74,6 @@ function edgeSpecs(prefix: string): PropertySpec[] {
     ];
 }
 
-// Values for every side or corner at once: --ax-edge-kind, --ax-edge-depth, ...,
-// --ax-corner-shoulder-radius. Registered but never read: SHARED_FALLBACK_CSS gives each side's
-// or corner's property the shared value unless it sets its own, and the surface reads those.
-export const SHARED_SCHEMA: PropertySpec[] = [...edgeSpecs('--ax-edge-'), len('--ax-corner-shoulder-radius', '0px')];
-
-// For the host's shadow stylesheet. :host rules lose to every author declaration on the element
-// (rules, inline styles, animations), so a property set anywhere wins over the shared one.
-const fallbacks = [
-    ...flatten(SIDES.map((s) => EDGE_PARAMS.map((p) => `--ax-edge-${s}-${p}: var(--ax-edge-${p});`))),
-    ...CORNERS.map((c) => `--ax-corner-${c}-shoulder-radius: var(--ax-corner-shoulder-radius);`),
-];
-export const SHARED_FALLBACK_CSS = `:host { ${fallbacks.join(' ')} }`;
-
 // Shape: the outline every layer draws, from the corners to the edge features.
 export const SHAPE_SCHEMA: PropertySpec[] = [
     lp('--ax-radius', '0px'),
@@ -62,12 +82,15 @@ export const SHAPE_SCHEMA: PropertySpec[] = [
     ...CORNERS.map((c) => kw(`--ax-corner-${c}-shape`, [...CORNER_SHAPES, 'auto'], 'auto')),
     ...CORNERS.map((c) => lp(`--ax-corner-${c}-shift-x`, '0px')),
     ...CORNERS.map((c) => lp(`--ax-corner-${c}-shift-y`, '0px')),
-    ...CORNERS.map((c) => len(`--ax-corner-${c}-shoulder-radius`, '0px')),
+    len('--ax-corner-shoulder-radius', '0px'),
+    ...CORNERS.map((c) => len(`--ax-corner-${c}-shoulder-radius`, 'auto', false, AUTO)),
+    // The general edge values each side falls back to when its own property is `auto`.
+    ...edgeSpecs('--ax-edge-', false),
     ...flatten(
         SIDES.map((s) => {
             // A flat edge ignores its feature parameters; skip reading them.
             const flat = { property: `--ax-edge-${s}-kind`, values: ['flat'] };
-            return edgeSpecs(`--ax-edge-${s}-`).map((spec, i) => (i === 0 ? spec : { ...spec, skipWhen: flat }));
+            return edgeSpecs(`--ax-edge-${s}-`, true).map((spec, i) => (i === 0 ? spec : { ...spec, skipWhen: flat }));
         })
     ),
 ];
@@ -92,17 +115,12 @@ export const TILT_SCHEMA: PropertySpec[] = [
 // initial value exactly as before, so a merged CORE_SCHEMA equals the unsplit one.
 export const CORE_SCHEMA: PropertySpec[] = [...SHAPE_SCHEMA, ...BORDER_SCHEMA, ...TILT_SCHEMA];
 
-// One group of the contract, with everything a consumer needs to adopt it alone. "read" goes
-// into the consumer's schema; "shared" must be registered so the general properties resolve;
-// "fallbackCss" belongs in the consumer's shadow root so a general property reaches each side
-// or corner.
+// One group of the contract, with everything a consumer needs to adopt it alone.
 export interface SchemaBundle {
     read: PropertySpec[];
-    shared?: PropertySpec[];
-    fallbackCss?: string;
 }
 
-export const SHAPE: SchemaBundle = { read: SHAPE_SCHEMA, shared: SHARED_SCHEMA, fallbackCss: SHARED_FALLBACK_CSS };
+export const SHAPE: SchemaBundle = { read: SHAPE_SCHEMA };
 export const BORDER: SchemaBundle = { read: BORDER_SCHEMA };
 export const TILT: SchemaBundle = { read: TILT_SCHEMA };
 
@@ -130,10 +148,12 @@ export class Values {
         return v ? v.px + (v.percent / 100) * basis : 0;
     }
 
-    // True when the property holds the negative "use the general value" sentinel.
+    // True when the property holds a "use the general value" sentinel: `auto`, or the older
+    // negative sentinel (--ax-radius, --ax-{corner}-radius, --ax-border-{side}-width).
     unset(name: string): boolean {
-        const v = this.raw(name) as LengthPercentage | number | null;
-        if (v === null) return true;
+        const v = this.raw(name) as LengthPercentage | number | string | null;
+        if (v === null || v === 'auto') return true;
+        if (typeof v === 'string') return false;
         return typeof v === 'number' ? v < 0 : v.px < 0 && v.percent === 0;
     }
 
@@ -174,26 +194,44 @@ export function shapeSpecFrom(v: Values, width: number, height: number): ShapeSp
     const min = Math.min(width, height);
     const generalRadius = v.lp('--ax-radius', min);
     const generalShape = v.keyword('--ax-corner-shape') as CornerShape;
+    // General values a per-side or per-corner property follows when it holds `auto`.
+    const generalKind = v.keyword('--ax-edge-kind') as EdgeKind;
+    const generalDepth = v.length('--ax-edge-depth');
+    const generalSpan = v.raw('--ax-edge-span') as LengthPercentage | null;
+    const generalAt = v.raw('--ax-edge-at') as LengthPercentage | null;
+    const generalRatio = v.number('--ax-edge-ratio');
+    const generalTip = v.length('--ax-edge-tip-radius');
+    const generalShoulder = v.length('--ax-edge-shoulder-radius');
+    const generalCornerShoulder = v.length('--ax-corner-shoulder-radius');
+
     const corners = [0, 1, 2, 3].map((i) => {
         const shape = v.keyword(NAMES.cornerShape[i]);
+        const shoulder = v.raw(NAMES.cornerShoulder[i]);
         return {
             radius: v.unset(NAMES.cornerRadius[i]) ? generalRadius : v.lp(NAMES.cornerRadius[i], min),
             shape: (shape === 'auto' || !shape ? generalShape : shape) as CornerShape,
             shiftX: v.lp(NAMES.shiftX[i], width),
             shiftY: v.lp(NAMES.shiftY[i], height),
-            shoulderRadius: v.length(NAMES.cornerShoulder[i]),
+            shoulderRadius: shoulder === 'auto' ? generalCornerShoulder : v.length(NAMES.cornerShoulder[i]),
         };
     }) as ShapeSpec['corners'];
     const edges = [0, 1, 2, 3].map((i) => {
         const length = i % 2 === 0 ? width : height;
+        const kind = v.keyword(NAMES.kind[i]);
+        const depth = v.raw(NAMES.depth[i]);
+        const span = v.raw(NAMES.span[i]);
+        const at = v.raw(NAMES.at[i]);
+        const ratio = v.raw(NAMES.ratio[i]);
+        const tip = v.raw(NAMES.tip[i]);
+        const shoulder = v.raw(NAMES.shoulder[i]);
         return {
-            kind: (v.keyword(NAMES.kind[i]) || 'flat') as EdgeKind,
-            depth: v.length(NAMES.depth[i]),
-            span: v.lp(NAMES.span[i], length),
-            at: v.lp(NAMES.at[i], 100) / 100,
-            ratio: v.number(NAMES.ratio[i]),
-            tipRadius: v.length(NAMES.tip[i]),
-            shoulderRadius: v.length(NAMES.shoulder[i]),
+            kind: (kind === 'auto' || !kind ? generalKind : kind) as EdgeKind,
+            depth: depth === 'auto' ? generalDepth : v.length(NAMES.depth[i]),
+            span: span === 'auto' ? (generalSpan ? generalSpan.px + (generalSpan.percent / 100) * length : 0) : v.lp(NAMES.span[i], length),
+            at: (at === 'auto' ? (generalAt ? generalAt.px + (generalAt.percent / 100) * 100 : 0) : v.lp(NAMES.at[i], 100)) / 100,
+            ratio: ratio === 'auto' ? generalRatio : v.number(NAMES.ratio[i]),
+            tipRadius: tip === 'auto' ? generalTip : v.length(NAMES.tip[i]),
+            shoulderRadius: shoulder === 'auto' ? generalShoulder : v.length(NAMES.shoulder[i]),
         };
     }) as ShapeSpec['edges'];
     return { width, height, corners, edges };

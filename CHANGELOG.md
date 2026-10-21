@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented in this file.
 
+## 0.4.0
+
+- The per-side and per-corner edge properties (`--ax-edge-{side}-kind`, `--ax-edge-{side}-depth` and the rest, plus `--ax-corner-{corner}-shoulder-radius`) now default to `auto`, resolved in JavaScript against the general `--ax-edge-*` and `--ax-corner-shoulder-radius` properties instead of through `:host` CSS fallbacks. Reading a per-side computed style now shows `auto` rather than the resolved value.
+- Animating a per-side property from an implicit starting point now switches discretely at the 50% mark instead of interpolating continuously; write an explicit `from` to keep interpolating. Animating the general properties is unchanged.
+- Removed `SHARED_FALLBACK_CSS`, `SHARED_SCHEMA` and the `shared` / `fallbackCss` fields of `SchemaBundle` (so `SHAPE.shared` and `SHAPE.fallbackCss` are gone). The general properties are now part of `SHAPE_SCHEMA` and are read on every paint.
+
 ## 0.3.3
 
 - A pointer is mapped through a scaled or zoomed ancestor (a page transition, a design preview, `zoom`): its screen position is divided back into the local pixels of the surface, so a press lands where it looks. A surface that tilts still maps through its homography.
