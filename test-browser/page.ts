@@ -140,7 +140,10 @@ async function run() {
     {
         const e = byId('e');
         const sides = ['top', 'right', 'bottom', 'left'];
-        const read = () => sides.map((s) => `${e.debugState.values!.keyword(`--ax-edge-${s}-kind`)} ${e.debugState.values!.length(`--ax-edge-${s}-depth`)}`).join(', ');
+        // 0.4 resolves the per-side `auto` sentinels in shapeSpecFrom, so read the resolved
+        // spec instead of the raw per-side values (which are `auto`).
+        const spec = () => shapeSpecFrom(e.debugState.values!, 160, 60);
+        const read = () => sides.map((_, i) => `${spec().edges[i].kind} ${spec().edges[i].depth}`).join(', ');
         e.classList.add('shared');
         await frames(4);
         check('shared edge properties reach every side', read() === 'arc -10, arc -10, arc -10, arc -10', read());
@@ -153,7 +156,7 @@ async function run() {
         const start = performance.now();
         while (performance.now() - start < 550) {
             await frames(1);
-            depths.add(e.debugState.values!.length('--ax-edge-right-depth'));
+            depths.add(spec().edges[1].depth);
         }
         const between = [...depths].filter((d) => d < -10.5 && d > -29.5).length;
         check('a shared transition animates the sides', between >= 3 && depths.has(-30), `between=${between} values=${[...depths].map((d) => d.toFixed(1)).join(' ')}`);
@@ -162,7 +165,7 @@ async function run() {
         check('removing the shared properties restores flat sides', read() === 'flat 0, flat 0, flat 0, flat 0', read());
         e.classList.add('corners');
         await frames(4);
-        const shoulders = ['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((c) => e.debugState.values!.length(`--ax-corner-${c}-shoulder-radius`)).join(' ');
+        const shoulders = spec().corners.map((c) => c.shoulderRadius).join(' ');
         check('shared corner shoulder radius, one corner overridden', shoulders === '7 3 7 7', shoulders);
         e.className = '';
         await frames(4);
