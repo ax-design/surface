@@ -6,7 +6,7 @@
       "name": "@ax-design/surface",
       "dependencies": {
         "@ax-design/shape": "^0.3.0",
-        "@ax-design/typed-om": "file:/home/losses/Development/ax-workspace/.morph/dist/ax-design-typed-om-0.2.0.tgz",
+        "@ax-design/typed-om": "^0.2.1",
       },
       "devDependencies": {
         "@ax-design/acrylic": "^0.2.0",
@@ -29,7 +29,7 @@
 
     "@ax-design/surface": ["@ax-design/surface@0.2.0", "", { "dependencies": { "@ax-design/shape": "^0.2.0", "@ax-design/typed-om": "^0.1.0" } }, "sha512-2TSvy6cAvZDhu7IQ30TZSeaON6WtaExLqmtDUpnIapIfaKCWLySN/tiZXtp1pJ83pyNIH09731ISClHXCDq2bg=="],
 
-    "@ax-design/typed-om": ["@ax-design/typed-om@/home/losses/Development/ax-workspace/.morph/dist/ax-design-typed-om-0.2.0.tgz", {}, "sha512-t4nTci1MS5zTXV/z1aeQqPCn5nV4+Ee5Oipp5cYeAcdOPS2UF3VlirGtrIPdy9liBKg/B2rZUOI0KnZ/MKv4Pg=="],
+    "@ax-design/typed-om": ["@ax-design/typed-om@0.2.1", "", {}, "sha512-3JJhuEk4Pm8xW4Xmz1WBucBXZ8i/x2YQBkPLoaJgaMfyeC6p/hnhYZ1l9ZYKXdXJHO/DBaZgehXK45gNJzhgKw=="],
 
     "@types/bun": ["@types/bun@1.4.3", "", { "dependencies": { "bun-types": "1.4.3" } }, "sha512-N67Pqy8JXbAY/j0tNraS3V5mubGvc6rrrNDmDCtZLlFzccbUJPDb0tvgUBC5q4m8ybkP93Jcn1QB+RYQ6PvBhw=="],
 
