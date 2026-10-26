@@ -370,7 +370,10 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             this.sizeDirty = true;
             this.requestFrame();
         });
-        s.observeVisibility(this, (visible) => this.setVisible(visible));
+        // A surface that shares the visibility of an element (its host) leaves the observer one target
+        // instead of one per part; copies of this package older than 0.4.2 do not support it.
+        this.visibilityElement = s.sharedVisibility ? this.visibilityTarget() : this;
+        s.observeVisibility(this.visibilityElement, this.onVisibility);
         this.addEventListener('pointerdown', this.onPointerDown);
         this.addEventListener('dragstart', onDragStart);
     }
@@ -379,7 +382,8 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         this.connected = false;
         const s = services();
         s.unobserveSize(this);
-        s.unobserveVisibility(this);
+        if (this.visibilityElement) s.unobserveVisibility(this.visibilityElement, this.onVisibility);
+        this.visibilityElement = null;
         s.pointerListeners.delete(this);
         appearance().listeners.delete(this.onAppearance);
         s.scheduler.cancel(this);
@@ -389,6 +393,19 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         this.pendingLayers.forEach((cancel) => cancel());
         this.pendingLayers = [];
         this.visible = false;
+    }
+
+    private visibilityElement: Element | null = null;
+    private onVisibility = (visible: boolean) => this.setVisible(visible);
+
+    /**
+     * The element whose visibility in the viewport is this surface's. Its own box by default. A surface
+     * that always lies inside another element's box (the parts of a component, in the component's
+     * shadow root) may return that element: the page then watches one element for all of them, which
+     * matters when a component has dozens of surfaces.
+     */
+    protected visibilityTarget(): Element {
+        return this;
     }
 
     private onLayerRegistered = () => {

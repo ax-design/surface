@@ -452,6 +452,25 @@ A paint box larger than the element overlaps its neighbors, and the browser may 
 
 While the surface is tilted, it puts the tilt on each layer's container. If your layer uses `backdrop-filter`, set `tiltsItself: true` and apply `frame.tiltTransform` to your own elements, around the center of the element's box: inside `position: sticky`, Firefox renders a backdrop-filter under a transformed ancestor with the wrong backdrop.
 
+## Frames for code that is not a surface
+
+The scheduler is one for the whole page, and any object with `read`, `compute`, `write` and `priority` can be its client: ask with `services().scheduler.request(client)` and it runs in the next frame with every surface, reads first, then the math, then the writes, so no client reads after another one has written. A client asks again from its own `write` while it moves, and does not when it is at rest, so an idle page asks for no frame at all. `PRIORITY_PRESSED`, `PRIORITY_POINTER` and `PRIORITY_IDLE` are the priorities the surfaces use; any number between them is a score.
+
+```ts
+import { PRIORITY_IDLE, services } from '@ax-design/surface';
+import type { FrameClient } from '@ax-design/surface';
+
+const client: FrameClient = {
+    read: () => { /* measure */ },
+    compute: () => { /* math */ },
+    write: () => { /* change the DOM */ },
+    priority: () => PRIORITY_IDLE,
+};
+services().scheduler.request(client);
+```
+
+A component that has many surfaces inside its own box can have the page watch the visibility of that one box: override `visibilityTarget()` of the surface class to return the element.
+
 ## Writing an element
 
 Subclass `AxSurface` to make an element with its own property names. `layerNames_()` picks the layers, `shapeFor()` and `borderWidthsFor()` read the shape, and `tiltParams()` and `tiltPerspective()` read the tilt:

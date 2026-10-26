@@ -19,7 +19,7 @@ export type { LayerFactory, LocalPointer, PaintBox, SurfaceFrame, SurfaceLayer }
 export type { MotionState } from './tilt.js';
 export { WINDOWS_EASINGS, bezierAt, parseEasing, windowsEasing } from './easing.js';
 export type { Bezier } from './easing.js';
-export { Scheduler } from './scheduler.js';
+export { PRIORITY_IDLE, PRIORITY_POINTER, PRIORITY_PRESSED, Scheduler } from './scheduler.js';
 export type { FrameClient, Quality } from './scheduler.js';
 export { CORE_SCHEMA, Values, borderWidthsFrom, shapeSpecFrom } from './schema.js';
 export { BORDER, SHAPE, TILT, BORDER_SCHEMA, SHAPE_SCHEMA, TILT_SCHEMA } from './schema.js';

@@ -15,7 +15,10 @@ const SETTLE_DELAY = 300;
 const MARGIN = '256px';
 
 export class VisibilityTracker {
-    private callbacks = new Map<Element, (visible: boolean) => void>();
+    // Several surfaces may share one element (see AxSurface.visibilityTarget).
+    private callbacks = new Map<Element, Set<(visible: boolean) => void>>();
+    // What each element reported last, for a surface that joins an element that has reported.
+    private last = new Map<Element, boolean>();
     private observer: IntersectionObserver | null = null;
     // Targets of the running round that have not reported yet.
     private awaiting = new Set<Element>();
@@ -28,8 +31,11 @@ export class VisibilityTracker {
         if (typeof IntersectionObserver === 'undefined') return;
         this.observer = new IntersectionObserver((entries) => {
             for (const entry of entries) {
-                const callback = this.callbacks.get(entry.target);
-                if (callback) callback(entry.isIntersecting);
+                const callbacks = this.callbacks.get(entry.target);
+                if (callbacks) {
+                    this.last.set(entry.target, entry.isIntersecting);
+                    callbacks.forEach((callback) => callback(entry.isIntersecting));
+                }
                 this.awaiting.delete(entry.target);
             }
             if (this.active && this.awaiting.size === 0) this.finishRound();
@@ -41,12 +47,21 @@ export class VisibilityTracker {
     }
 
     observe(element: Element, callback: (visible: boolean) => void): void {
-        this.callbacks.set(element, callback);
+        let callbacks = this.callbacks.get(element);
+        const joined = !!callbacks && callbacks.size > 0;
+        if (!callbacks) this.callbacks.set(element, (callbacks = new Set()));
+        callbacks.add(callback);
         if (!this.observer) {
             callback(true);
             return;
         }
         if (!this.started) this.start();
+        // The element has reported already: the surface that joins it is told at once.
+        const known = this.last.get(element);
+        if (joined && known !== undefined) {
+            callback(known);
+            return;
+        }
         if (this.active) {
             this.awaiting.add(element);
             this.observer.observe(element);
@@ -55,8 +70,13 @@ export class VisibilityTracker {
         }
     }
 
-    unobserve(element: Element): void {
+    unobserve(element: Element, callback?: (visible: boolean) => void): void {
+        const callbacks = this.callbacks.get(element);
+        if (callbacks && callback) callbacks.delete(callback);
+        // The element goes with its last surface.
+        if (callbacks && callback && callbacks.size > 0) return;
         this.callbacks.delete(element);
+        this.last.delete(element);
         if (!this.observer) return;
         this.observer.unobserve(element);
         if (this.awaiting.delete(element) && this.active && this.awaiting.size === 0) this.finishRound();

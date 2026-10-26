@@ -29,8 +29,11 @@ export interface Services {
     triggers: StyleTriggers;
     pointer: PointerState;
     pointerListeners: Set<PointerListener>;
+    // Several callbacks may share one element; unobserving with the callback removes only it.
     observeVisibility(element: Element, callback: (visible: boolean) => void): void;
-    unobserveVisibility(element: Element): void;
+    unobserveVisibility(element: Element, callback?: (visible: boolean) => void): void;
+    // Set by copies that support surfaces sharing an element's visibility (0.4.2 and later).
+    sharedVisibility?: boolean;
     observeSize(element: Element, callback: (width: number, height: number) => void): void;
     unobserveSize(element: Element): void;
 }
@@ -136,9 +139,10 @@ function createServices(): Services {
         observeVisibility(element, callback) {
             visibility.observe(element, callback);
         },
-        unobserveVisibility(element) {
-            visibility.unobserve(element);
+        unobserveVisibility(element, callback) {
+            visibility.unobserve(element, callback);
         },
+        sharedVisibility: true,
         observeSize(element, callback) {
             sizes.set(element, callback);
             if (resize) resize.observe(element);

@@ -2,6 +2,11 @@
 
 All notable changes to this package are documented in this file.
 
+## 0.4.2
+
+- `PRIORITY_PRESSED`, `PRIORITY_POINTER` and `PRIORITY_IDLE` are exported, so code that is not a surface can be a client of the frame scheduler with a priority (`services().scheduler.request`).
+- A surface class may override `visibilityTarget()` to share the visibility of another element (its component's host). The page then watches one element for all of them instead of one per surface, which took most of the cost of a scroll on a page with hundreds of surfaces. Several surfaces may share an element in the visibility tracker.
+
 ## 0.4.1
 
 - Depends on `@ax-design/typed-om` 0.3, which adds the `time` syntax type. A schema with a `<time>` property (an `extraSchema` of a subclass or the schema of a layer) is now read by the surface as a number of milliseconds; with 0.2 it was not understood.
