@@ -2,6 +2,10 @@
 
 All notable changes to this package are documented in this file.
 
+## 0.4.1
+
+- Depends on `@ax-design/typed-om` 0.3, which adds the `time` syntax type. A schema with a `<time>` property (an `extraSchema` of a subclass or the schema of a layer) is now read by the surface as a number of milliseconds; with 0.2 it was not understood.
+
 ## 0.4.0
 
 - The per-side and per-corner edge properties (`--ax-edge-{side}-kind`, `--ax-edge-{side}-depth` and the rest, plus `--ax-corner-{corner}-shoulder-radius`) now default to `auto`, resolved in JavaScript against the general `--ax-edge-*` and `--ax-corner-shoulder-radius` properties instead of through `:host` CSS fallbacks. Reading a per-side computed style now shows `auto` rather than the resolved value.
