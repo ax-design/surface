@@ -211,6 +211,42 @@ async function run() {
     window.scrollTo(0, 0);
     await frames(6);
 
+    // 4a. A paused surface is as one outside the viewport, and resumes at once.
+    check('a surface in view observes', observing(a));
+    a.paused = true;
+    await frames(4);
+    check('a paused surface does not observe', a.paused && !observing(a));
+    a.paused = false;
+    await frames(4);
+    check('a resumed surface observes again', !a.paused && observing(a));
+
+    // 4a2. Surfaces that share the visibility of an element are in view with it, and one watch serves them.
+    {
+        class Part extends (customElements.get('ax-surface') as typeof HTMLElement & { new (): AxSurface }) {
+            protected visibilityTarget(): Element {
+                return (this.getRootNode() as ShadowRoot).host || this;
+            }
+        }
+        if (!customElements.get('ax-test-shared')) customElements.define('ax-test-shared', Part);
+        const host = document.createElement('div');
+        host.style.cssText = 'position: absolute; left: 0; top: 0; width: 200px; height: 50px';
+        const shadow = host.attachShadow({ mode: 'open' });
+        const parts = [0, 1, 2].map(() => {
+            const part = document.createElement('ax-test-shared') as AxSurface;
+            part.setAttribute('layers', 'fill');
+            part.style.cssText = 'display: block; width: 50px; height: 20px';
+            shadow.appendChild(part);
+            return part;
+        });
+        document.body.appendChild(host);
+        await frames(8);
+        check('surfaces that share an element observe with it', parts.every(observing), parts.map(observing).join());
+        host.style.top = '5000px';
+        await frames(8);
+        check('surfaces that share an element leave with it', parts.every((part) => !observing(part)), parts.map(observing).join());
+        host.remove();
+    }
+
     // 4b. Layers are made a little before a surface comes into view (256 px), so that one sliding in
     // during an animation does not build them in the middle of it.
     {

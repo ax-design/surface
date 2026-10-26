@@ -384,6 +384,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         s.unobserveSize(this);
         if (this.visibilityElement) s.unobserveVisibility(this.visibilityElement, this.onVisibility);
         this.visibilityElement = null;
+        this.inView = false;
         s.pointerListeners.delete(this);
         appearance().listeners.delete(this.onAppearance);
         s.scheduler.cancel(this);
@@ -396,7 +397,29 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     }
 
     private visibilityElement: Element | null = null;
-    private onVisibility = (visible: boolean) => this.setVisible(visible);
+    // In the viewport (what the page's observer says), and not paused: only then does the surface run frames.
+    private inView = false;
+    private pausedNow = false;
+    private onVisibility = (visible: boolean) => {
+        this.inView = visible;
+        this.setVisible(visible && !this.pausedNow);
+    };
+
+    /**
+     * A paused surface runs no frame, reads no style and draws nothing, as one outside the viewport,
+     * until it is resumed (paused = false), which draws it again at once. For a surface that is
+     * known to show nothing for a while (a part of a component that is faded out): a page with
+     * hundreds of them then costs nothing until they show.
+     */
+    get paused(): boolean {
+        return this.pausedNow;
+    }
+
+    set paused(on: boolean) {
+        if (on === this.pausedNow) return;
+        this.pausedNow = on;
+        this.setVisible(this.inView && !on);
+    }
 
     /**
      * The element whose visibility in the viewport is this surface's. Its own box by default. A surface

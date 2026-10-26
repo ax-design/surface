@@ -2,6 +2,10 @@
 
 All notable changes to this package are documented in this file.
 
+## 0.4.3
+
+- `paused`: a surface with `paused = true` runs no frame, reads no style and draws nothing, as one outside the viewport, and draws again at once when it is set back to `false`. For a surface that is known to show nothing for a while, such as a part of a component that has faded out: a page with hundreds of them costs nothing until they show.
+
 ## 0.4.2
 
 - `PRIORITY_PRESSED`, `PRIORITY_POINTER` and `PRIORITY_IDLE` are exported, so code that is not a surface can be a client of the frame scheduler with a priority (`services().scheduler.request`).

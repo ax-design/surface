@@ -469,7 +469,7 @@ const client: FrameClient = {
 services().scheduler.request(client);
 ```
 
-A component that has many surfaces inside its own box can have the page watch the visibility of that one box: override `visibilityTarget()` of the surface class to return the element.
+A component that has many surfaces inside its own box can have the page watch the visibility of that one box: override `visibilityTarget()` of the surface class to return the element. A surface that is known to show nothing for a while can be paused (`surface.paused = true`): it then runs no frame and reads no style, as one outside the viewport, until it is set back to `false`.
 
 ## Writing an element
 
