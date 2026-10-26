@@ -56,7 +56,7 @@
     "@ax-design/typed-om": "^0.3.0"
   },
   "devDependencies": {
-    "@ax-design/acrylic": "^0.2.0",
+    "@ax-design/acrylic": "^0.3.1",
     "@ax-design/elevation": "^0.1.0",
     "@ax-design/reveal-highlight": "^0.6.2",
     "@types/bun": "latest",
