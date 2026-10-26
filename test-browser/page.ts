@@ -1,8 +1,8 @@
 // Browser checks for <ax-surface>. Some steps need real input; the driver performs them when
 // window.__step asks for it and answers through window.__ack.
 import { apply, resolve, tiltHomography, toSvgPath } from '@ax-design/shape';
-import { appearance, register, registerLayer, services, setAlwaysUseFallback, shapeSpecFrom, borderWidthsFrom } from '../src/index.js';
-import type { AxSurface, LocalPointer } from '../src/index.js';
+import { AxSurface, appearance, register, registerLayer, services, setAlwaysUseFallback, shapeSpecFrom, borderWidthsFrom } from '../src/index.js';
+import type { LocalPointer } from '../src/index.js';
 
 interface Check {
     name: string;
@@ -751,6 +751,83 @@ async function run() {
         check('and the frame shows the layers with their new opacity', layers.style.visibility === '' && Math.abs(last().opacity - 0.5) < 1e-9, `${layers.style.visibility} ${last().opacity}`);
         mo.motion(null);
         await frames(3);
+    }
+
+    // The style of a surface is one sheet that every surface adopts, with the sheets of its class after it.
+    {
+        const extra = new CSSStyleSheet();
+        extra.replaceSync(':host { outline-offset: 7px; }');
+        class Sheeted extends AxSurface {
+            static schemaKey = 'sheeted-probe';
+            static extraSheets(): CSSStyleSheet[] {
+                return [extra];
+            }
+        }
+        customElements.define('ax-sheeted-probe', Sheeted);
+        const one = document.createElement('ax-surface') as AxSurface;
+        const two = document.createElement('ax-surface') as AxSurface;
+        const three = document.createElement('ax-sheeted-probe') as AxSurface;
+        document.body.append(one, two, three);
+        const sheets = (el: Element) => (el.shadowRoot as ShadowRoot).adoptedStyleSheets;
+        check('surfaces adopt one shared sheet and carry no style element', sheets(one).length === 1 && sheets(one)[0] === sheets(two)[0] && !one.shadowRoot!.querySelector('style'), `${sheets(one).length} sheets`);
+        check('the sheets of a class come after the surface sheet', sheets(three).length === 2 && sheets(three)[0] === sheets(one)[0] && sheets(three)[1] === extra, `${sheets(three).length} sheets`);
+        check('the sheet of a class applies, and the surface sheet too', getComputedStyle(three).outlineOffset === '7px' && getComputedStyle(one).display === 'inline-block', `${getComputedStyle(three).outlineOffset} ${getComputedStyle(one).display}`);
+        one.remove();
+        two.remove();
+        three.remove();
+    }
+
+    // The properties of a layer are registered with the browser when the layer is, not when the first surface that
+    // uses it is made (a registration invalidates the style of the whole page).
+    {
+        registerLayer('register-probe', () => ({
+            schema: [{ name: '--register-probe-x', syntax: { type: 'length' as const }, initial: '0px', inherits: false, register: true }],
+            static: true,
+            attach() {},
+            detach() {},
+            write: () => false,
+        }));
+        let registeredAlready = false;
+        try {
+            CSS.registerProperty({ name: '--register-probe-x', syntax: '<length>', inherits: false, initialValue: '0px' });
+        } catch (error) {
+            registeredAlready = (error as Error).name === 'InvalidModificationError';
+        }
+        check('registering a layer registers its properties with the browser, before any surface uses it', registeredAlready);
+    }
+
+    // The running transitions are checked once per frame for every surface, not once for each, and a
+    // surface is animating when it is inside a running element.
+    {
+        const holder = document.createElement('div');
+        holder.style.cssText = 'opacity: 1; transition: opacity 1s linear;';
+        const hosts: HTMLElement[] = [];
+        for (let i = 0; i < 40; i++) {
+            const s = document.createElement('ax-surface') as HTMLElement;
+            hosts.push(s);
+            holder.appendChild(s);
+        }
+        const outside = document.createElement('ax-surface') as HTMLElement;
+        document.body.append(holder, outside);
+        await frames(2);
+        holder.style.opacity = '0.2';
+        await frames(3);
+        const triggers = services().triggers;
+        const proto = Element.prototype as Element & { getAnimations: () => Animation[] };
+        const real = proto.getAnimations;
+        let calls = 0;
+        proto.getAnimations = function (this: Element) {
+            calls++;
+            return real.call(this);
+        };
+        let inside = 0;
+        for (const host of hosts) if (triggers.isAnimating(host)) inside++;
+        const outsideAnimating = triggers.isAnimating(outside);
+        proto.getAnimations = real;
+        check('a surface inside a running transition is animating, one outside is not', inside === 40 && !outsideAnimating, `inside ${inside} of 40, outside ${outsideAnimating}`);
+        check('the running elements are checked once for all the surfaces of a frame', calls <= 3, `getAnimations called ${calls} times for 41 surfaces`);
+        holder.remove();
+        outside.remove();
     }
 
     return { userAgent: navigator.userAgent, checks };

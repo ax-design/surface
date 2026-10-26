@@ -96,16 +96,28 @@ export class StyleTriggers {
     // The surface then re-reads every frame until it ends.
     isAnimating(host: Node): boolean {
         if (!this.running.size) return false;
-        let result = false;
-        this.running.forEach((_, element) => {
-            // getAnimations (2020+) corrects counts when cancel events are missing.
-            if (element.getAnimations && element.getAnimations().length === 0) {
-                this.running.delete(element);
-                return;
-            }
-            if (!result && composedContains(element, host)) result = true;
+        this.prune();
+        // The host is inside a running element, or is one: its ancestors are looked up, not the running
+        // elements walked for each host (a page of hundreds of surfaces and a dozen running transitions).
+        for (let n: Node | null = host; n; n = composedParent(n)) if (this.running.has(n as Element)) return true;
+        return false;
+    }
+
+    // Whether the running elements were checked in this frame (cleared after it, in a microtask).
+    private pruned = false;
+
+    // Drops the running elements that have no animation any more. getAnimations (2020+) corrects counts
+    // when cancel events are missing, and costs a style flush, so it is asked once per frame for all the
+    // surfaces and not once per surface.
+    private prune(): void {
+        if (this.pruned) return;
+        this.pruned = true;
+        Promise.resolve().then(() => {
+            this.pruned = false;
         });
-        return result;
+        this.running.forEach((_, element) => {
+            if (element.getAnimations && element.getAnimations().length === 0) this.running.delete(element);
+        });
     }
 
     private invalidate(scope: Node) {

@@ -492,6 +492,8 @@ class MyCard extends AxSurface {
 customElements.define('my-card', MyCard);
 ```
 
+A surface's own style is one constructed sheet that every surface adopts. A class that styles its shadow root with a sheet of its own returns it from `static extraSheets()`, which is asked once per class and whose sheets come after Surface's (a rule of yours beats one of Surface's of the same specificity). Do not add a style element to each instance: a page of hundreds of surfaces would parse and match one for each. (A browser without constructable style sheets, such as Safari before 16.4, has no adopted sheets, and its surfaces get Surface's style element; add yours to the instance then.)
+
 ## Browser support
 
 Several packages may each bundle their own copy of Surface (the `build/` files of `@ax-design/reveal-highlight` and `@ax-design/acrylic` do), and they share their layers and their scheduler on the page.

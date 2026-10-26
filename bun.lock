@@ -6,7 +6,7 @@
       "name": "@ax-design/surface",
       "dependencies": {
         "@ax-design/shape": "^0.3.0",
-        "@ax-design/typed-om": "^0.3.0",
+        "@ax-design/typed-om": "^0.3.1",
       },
       "devDependencies": {
         "@ax-design/acrylic": "^0.3.2",
@@ -29,7 +29,7 @@
 
     "@ax-design/surface": ["@ax-design/surface@0.4.1", "", { "dependencies": { "@ax-design/shape": "^0.3.0", "@ax-design/typed-om": "^0.3.0" } }, "sha512-CzNUjd9VO3nXPrhre19C4BgQtyovnv0sBNRzCkNTnrQoQjaQ/fN3tUTfBj+yPwEFseQ/AC864X5GT3trzMjGcQ=="],
 
-    "@ax-design/typed-om": ["@ax-design/typed-om@0.3.0", "", {}, "sha512-zNLME1sVQ/v7fqiIPDoz/2/d2cdkHi1bQhR2opOxZSaIkTSVjet8k9gpUCuNeZhazElWGkqO1yAaf9kH+TIddg=="],
+    "@ax-design/typed-om": ["@ax-design/typed-om@0.3.1", "", {}, "sha512-YvqZdpQKbXTZhRt3/CAUduTaUC+2vLAzb8JPkPQxWMUNVl7zEqwD0m3fDiJ4XAUcZWQMeYLDmxG3i7zyG6CsSQ=="],
 
     "@types/bun": ["@types/bun@1.4.3", "", { "dependencies": { "bun-types": "1.4.3" } }, "sha512-N67Pqy8JXbAY/j0tNraS3V5mubGvc6rrrNDmDCtZLlFzccbUJPDb0tvgUBC5q4m8ybkP93Jcn1QB+RYQ6PvBhw=="],
 

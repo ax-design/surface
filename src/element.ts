@@ -103,8 +103,30 @@ const STYLE = `
 .content { position: relative; width: 100%; height: 100%; }
 `;
 
+// The style of a surface is one constructed sheet that every surface adopts (with those of its class, see
+// extraSheets): a page of hundreds of surfaces, each a shadow root, would otherwise make and match a style
+// element for each. A browser without constructable style sheets gets the style element in the template.
+const adoptable =
+    typeof CSSStyleSheet === 'function' && typeof Document !== 'undefined' && 'adoptedStyleSheets' in Document.prototype && 'replaceSync' in CSSStyleSheet.prototype;
+let surfaceSheet: CSSStyleSheet | null = null;
+// The sheets of each class, in the order of the cascade: the surface's, then those of the class.
+const sheetLists = new WeakMap<object, CSSStyleSheet[]>();
+
+function sheetsFor(cls: typeof AxSurface): CSSStyleSheet[] {
+    let list = sheetLists.get(cls);
+    if (!list) {
+        if (!surfaceSheet) {
+            surfaceSheet = new CSSStyleSheet();
+            surfaceSheet.replaceSync(STYLE);
+        }
+        list = [surfaceSheet, ...cls.extraSheets()];
+        sheetLists.set(cls, list);
+    }
+    return list;
+}
+
 const template = typeof document !== 'undefined' ? document.createElement('template') : null;
-if (template) template.innerHTML = `<style>${STYLE}</style><div class="tilt"><div class="layers"></div><div class="content"><slot></slot></div></div>`;
+if (template) template.innerHTML = `${adoptable ? '' : `<style>${STYLE}</style>`}<div class="tilt"><div class="layers"></div><div class="content"><slot></slot></div></div>`;
 
 // Schemas are compiled once per element class and layer combination, and shared by every
 // surface using it.
@@ -209,7 +231,24 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     // surface's bounding rect is the box around a projected quad and useless for mapping the
     // pointer; the pointer goes through the ancestor's inverse tilt and this offset instead,
     // measured while no ancestor was tilted.
-    private parentSurface: AxSurface | null = null;
+    // Found the first time it is asked for (the walk up the composed tree costs more the deeper the
+    // page is, and a surface that is paused or out of view never needs it), and again after each connect.
+    private parentFound = false;
+    private parentSurfaceNow: AxSurface | null = null;
+    private get parentSurface(): AxSurface | null {
+        if (!this.parentFound) {
+            this.parentFound = true;
+            this.parentSurfaceNow = null;
+            for (let n: Node | null = this.parentNode || null; n; n = n.parentNode || (n as ShadowRoot).host || null) {
+                // A brand rather than instanceof: the parent may come from another copy of this package.
+                if ((n as unknown as { [SURFACE]?: boolean })[SURFACE as unknown as string]) {
+                    this.parentSurfaceNow = n as unknown as AxSurface;
+                    break;
+                }
+            }
+        }
+        return this.parentSurfaceNow;
+    }
     get [SURFACE as unknown as string](): boolean {
         return true;
     }
@@ -217,18 +256,21 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
 
     // Whether this surface or one around it is tilted now.
     isTilted(): boolean {
-        return !!this.homography || (!!this.parentSurface && this.parentSurface.isTilted());
+        const parent = this.parentSurface;
+        return !!this.homography || (!!parent && parent.isTilted());
     }
 
     private ancestorTilted(): boolean {
-        return !!this.parentSurface && this.parentSurface.isTilted();
+        const parent = this.parentSurface;
+        return !!parent && parent.isTilted();
     }
 
     // A screen point in this surface's own plane, before its own tilt.
     private toUntiltedLocal(x: number, y: number): Point | null {
-        if (this.parentSurface && this.ancestorTilted()) {
+        const parent = this.parentSurface;
+        if (parent && this.ancestorTilted()) {
             const o = this.offsetInParent;
-            const p = o ? this.parentSurface.toLocal(x, y) : null;
+            const p = o ? parent.toLocal(x, y) : null;
             return p && o ? { x: p.x - o.x, y: p.y - o.y } : null;
         }
         const r = this.rect || this.lastRect;
@@ -287,9 +329,20 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     constructor() {
         super();
         this.root = this.attachShadow({ mode: 'open' });
-        this.root.appendChild(template!.content.cloneNode(true));
-        this.contentBox = this.root.querySelector('.content') as HTMLElement;
-        this.layerBox = this.root.querySelector('.layers') as HTMLElement;
+        if (adoptable) this.root.adoptedStyleSheets = sheetsFor(this.constructor as typeof AxSurface);
+        const copy = template!.content.cloneNode(true);
+        // The tilt box is the last child (a style element may come before it), the layers and the content its children.
+        const tilt = copy.lastChild as HTMLElement;
+        this.layerBox = tilt.firstChild as HTMLElement;
+        this.contentBox = tilt.lastChild as HTMLElement;
+        this.root.appendChild(copy);
+    }
+
+    // Constructed style sheets of a class, added after the surface's own for every instance, in
+    // the shadow root (built once per class, at its first instance). A subclass that styles its root
+    // returns its sheets here instead of adding a style element to each instance.
+    static extraSheets(): CSSStyleSheet[] {
+        return [];
     }
 
     // Extension points for elements built on the surface (the legacy <ax-reveal> adapters).
@@ -352,14 +405,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
 
     connectedCallback() {
         this.connected = true;
-        this.parentSurface = null;
-        for (let n: Node | null = this.parentNode || null; n; n = n.parentNode || (n as ShadowRoot).host || null) {
-            // A brand rather than instanceof: the parent may come from another copy of this package.
-            if ((n as unknown as { [SURFACE]?: boolean })[SURFACE as unknown as string]) {
-                this.parentSurface = n as unknown as AxSurface;
-                break;
-            }
-        }
+        this.parentFound = false;
         this.offsetInParent = null;
         this.buildLayers();
         const s = services();
@@ -511,7 +557,6 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             this.layers.push(layer);
             this.activeNames.push(name);
         }
-        if (this.visible) this.attachLayers();
         const ctor = this.constructor as typeof AxSurface;
         const schema = schemaFor(`${ctor.schemaKey}|${this.activeNames.join(' ')}`, ctor.extraSchema, this.layers);
         this.stopObserving();
@@ -523,7 +568,9 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         this.requestFrame();
     }
 
-    // Layer DOM is created on first visibility: off-screen surfaces cost one shadow root.
+    // Layer DOM is created on first visibility: off-screen surfaces cost one shadow root. It is made in
+    // the write phase of the surface's first frame (a visibility callback that wrote it would leave the page
+    // with layout to flush for the first read of the next frame, which would be that of some other client).
     private layersAttached = false;
     private attachLayers() {
         if (this.layersAttached) return;
@@ -543,8 +590,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         this.visible = visible;
         const s = services();
         if (visible) {
-            // Entering the viewport: one forced read, then observe changes.
-            this.attachLayers();
+            // Entering the viewport: one read in the next frame, then observe changes.
             this.styleDirty = true;
             this.startObserving();
             if (this.layers.some((l) => l.tracksPointer)) s.pointerListeners.add(this);
@@ -675,6 +721,15 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
             if (same) this.styleDirty = false;
             this.previous = next.slice();
             this.values.values = next;
+            // An author transition on this surface: keep reading every frame. getAnimations covers
+            // engines that fire no events for custom property transitions; it is costly, so it runs only
+            // right after a change and while an animation was running. It is asked here, in the read
+            // phase, where the styles are clean (this read has just resolved them): in the write phase
+            // it came after the writes of every surface before it, and flushed the styles again for each.
+            // The first read cannot see a running transition: transitions start on changes.
+            if (!this.precise && ((!same && this.reads > 1) || this.hostAnimating) && typeof this.getAnimations === 'function') {
+                this.hostAnimating = this.mayAnimate() && this.getAnimations().length > 0;
+            }
         }
         const pointer = services().pointer;
         const wantsPointer = this.pointerDirty || this.tiltDirty || this.animating;
@@ -819,6 +874,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
     write(now: number, quality: Quality) {
         const v = this.values;
         if (!v) return;
+        this.attachLayers();
         if (!this.shape || this.geometryPending) {
             // Nothing to draw yet; layers keep their last (cleared) state.
             this.styleDirty = this.sizeDirty = this.pointerDirty = this.tiltDirty = false;
@@ -921,13 +977,7 @@ export class AxSurface extends ElementBase implements FrameClient, PointerListen
         if (this.layersAttached) for (const layer of this.layers) if (layer.write(frame)) again = true;
         // The layers have drawn the opacity of this frame: shown again from this paint on.
         if (this.layersHidden && opacity > 0) this.writeLayersHidden(false);
-        // An author transition on this surface or an ancestor: keep reading every frame.
-        // getAnimations covers engines that fire no events for custom property transitions; it
-        // is costly, so it runs only right after a change and while an animation was running.
-        // The first read cannot see a running transition: transitions start on changes.
-        if (!this.precise && ((changed.style && this.reads > 1) || this.hostAnimating) && typeof this.getAnimations === 'function') {
-            this.hostAnimating = this.mayAnimate() && this.getAnimations().length > 0;
-        }
+        // An author transition on this surface or an ancestor: keep reading every frame (see read()).
         const readNext = !this.precise && (this.hostAnimating || services().triggers.isAnimating(this));
         if (readNext) again = true;
         this.animating = again;

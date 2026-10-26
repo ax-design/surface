@@ -2,6 +2,13 @@
 
 All notable changes to this package are documented in this file.
 
+## 0.4.4
+
+- A surface costs less to make and to keep. Its style is one constructed sheet that every surface adopts, instead of a style element in each shadow root, and a subclass adds the sheets of its class after it with `static extraSheets()` instead of adding a style element to each instance. A browser without constructable style sheets still gets the style element. The surface above a surface is looked for when it is first needed, not on every connect (the walk up the page costs more the deeper the page is, and a surface that is paused or out of view never needs it).
+- The layers of a surface are attached in the write phase of its first frame, not in the callback of the visibility observer. That callback wrote DOM between two frames, so the first read of the next frame, whichever client made it, found the layout dirty and forced it.
+- The check for a running author transition on the surface itself (`getAnimations`) runs in the read phase, right after the styles were read and are clean, not in the write phase, where it came after the writes of every surface before it and flushed the styles again for each surface that wrote: on a page of several hundred surfaces that was most of a long task. The running transitions of the page are checked once per frame for all surfaces (`getAnimations` of each running element, not of each running element for each surface), and a surface is animating when it, or an element around it, is running one, found by walking up from the surface instead of walking every running element.
+- The properties of a layer are registered with the browser when the layer is (`registerLayer`), and those of the core schema in `register()`, not when the first surface that uses them builds its schema. A registration invalidates the style of the whole page, so one that comes when a component first appears (a card, an arrow) found the page grown and paid for all of it. Depends on `@ax-design/typed-om` 0.3.1, which asks the browser once for each name.
+
 ## 0.4.3
 
 - `paused`: a surface with `paused = true` runs no frame, reads no style and draws nothing, as one outside the viewport, and draws again at once when it is set back to `false`. For a surface that is known to show nothing for a while, such as a part of a component that has faded out: a page with hundreds of them costs nothing until they show.

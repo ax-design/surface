@@ -1,4 +1,5 @@
 import type { Homography, Point, Quad, ResolvedShape } from '@ax-design/shape';
+import { canRegister, registerProperties } from '@ax-design/typed-om';
 import type { PropertySpec } from '@ax-design/typed-om';
 import type { Quality } from './scheduler.js';
 import type { Values } from './schema.js';
@@ -126,6 +127,13 @@ export function hasLayer(name: string): boolean {
 export function registerLayer(name: string, factory: LayerFactory): void {
     if (registry[name]) throw new Error(`Surface layer "${name}" is already registered`);
     registry[name] = factory;
+    // The properties of the layer are registered with the browser now, with the layer, not when the first
+    // surface that uses it builds its schema: registering a property invalidates the style of the whole
+    // page, and one that happens when a component first appears (a card, a glyph) finds the page grown.
+    if (canRegister()) {
+        const schema = factory().schema;
+        if (schema) registerProperties(schema);
+    }
     const callbacks = waiting[name];
     if (!callbacks) return;
     delete waiting[name];

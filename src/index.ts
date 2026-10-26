@@ -2,7 +2,9 @@ import { AxSurface } from './element.js';
 import { createFillLayer } from './fill.js';
 import { createFocusLayer } from './focus.js';
 import { hasLayer, registerLayer } from './layer.js';
+import { CORE_SCHEMA } from './schema.js';
 import { services } from './global.js';
+import { registerProperties } from '@ax-design/typed-om';
 
 export { AxSurface } from './element.js';
 export { services } from './global.js';
@@ -35,6 +37,8 @@ let registered = false;
 export function register(): void {
     if (registered) return;
     registered = true;
+    // The properties every surface reads, with the browser now (see registerLayer).
+    registerProperties(CORE_SCHEMA);
     // Another copy of this package may have registered it already.
     if (!hasLayer('fill')) registerLayer('fill', createFillLayer);
     if (!hasLayer('focus')) registerLayer('focus', createFocusLayer);
